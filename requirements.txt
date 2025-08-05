@@ -1,7 +1,6 @@
 streamlit 
 pandas
 pyodbc
-urllib
 sqlalchemy
 datetime
 google.generativeai 
