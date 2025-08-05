@@ -6,7 +6,6 @@ import pyodbc
 import pandas as pd
 from dotenv import load_dotenv
 import os
-from gtts import gTTS
 import base64
 from io import BytesIO
 from time import time
