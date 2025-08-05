@@ -4,3 +4,4 @@ sqlalchemy
 pyodbc
 python-dotenv
 google-generativeai
+joblib
