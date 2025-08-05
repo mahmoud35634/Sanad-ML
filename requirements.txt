@@ -1,0 +1,11 @@
+streamlit 
+pandas
+pyodbc
+urllib
+sqlalchemy
+datetime
+google.generativeai 
+dotenv 
+os
+base64
+io  
