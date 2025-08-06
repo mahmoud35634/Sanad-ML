@@ -14,7 +14,8 @@ connection_string = (
         "PWD=Z2RhdGFzdHVkaW8=;"       # ← Replace with actual password
 
 )
-
+params = urllib.parse.quote_plus(connection_string)
+engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 # --- UI ---
 st.title("🛍️ Co-Purchased Items by Brand")
 
