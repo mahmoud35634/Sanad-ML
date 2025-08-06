@@ -140,8 +140,16 @@ if st.button("Show Co-Purchased Items") and selected_brand:
                   {gov_condition} {brand_item_filter}
             """
 
-            # Main query: Co-purchased items
             main_query = f"""
+                WITH BrandOrders AS (
+                    SELECT DISTINCT s.Order_Number
+                    FROM MP_Sales s
+                    LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
+                    LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
+                    WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
+                    AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+                    {gov_condition} {brand_item_filter}
+                )
                 SELECT TOP {int(top_rows)}
                     i.DESCRIPTION AS Item_Description,
                     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Brand,
@@ -151,14 +159,13 @@ if st.button("Show Co-Purchased Items") and selected_brand:
                 FROM MP_Sales s
                 LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
                 LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                WHERE s.Order_Number IN ({brand_orders_query})
-                  AND RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
-                  AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                  {gov_condition} 
+                INNER JOIN BrandOrders bo ON s.Order_Number = bo.Order_Number
+                WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
+                AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+                {gov_condition}
                 GROUP BY i.DESCRIPTION, i.MASTER_BRAND
                 ORDER BY Distinct_Orders DESC
             """
-
             df = pd.read_sql(main_query, conn)
 
         # Display results
