@@ -67,6 +67,20 @@ def get_items_for_brand(brand):
 
 # Load items for selected brand
 items_list_df = get_items_for_brand(selected_brand) if selected_brand else pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION"])
+selected_brand = st.selectbox("🔍Choose a Brand", options=items_list_df)
+
+
+def get_category():
+        with engine.connect() as conn:
+            query = f"""
+                SELECT DISTINCT right(MG2, LEN(MG2) - CHARINDEX('|', MG2)) AS Category
+                FROM MP_Items  
+                WHERE RIGHT(MASTER_BRAND, LEN(MASTER_BRAND) - CHARINDEX('|', MASTER_BRAND)) = '{brand}'            
+            """
+        return pd.read_sql(query, conn)
+
+
+category_list = get_category() if selected_brand else pd.DataFrame(columns=["Category"])
 
 # --- Initialize session state ---
 if "selected_code" not in st.session_state:
