@@ -6,10 +6,13 @@ import datetime
 
 # --- Database Connection ---
 connection_string = (
-    "DRIVER={SQL Server};"
-    "SERVER=web.speed.live;"
-    "DATABASE=Sanad1;"
-    "Trusted_Connection=yes;"
+
+        "DRIVER={ODBC Driver 17 for SQL Server};"
+        "SERVER=web.speed.live;"
+        "DATABASE=Sanad1;"
+        "UID=gdatastudio;"       # ← Replace with actual username
+        "PWD=Z2RhdGFzdHVkaW8=;"       # ← Replace with actual password
+
 )
 params = urllib.parse.quote_plus(connection_string)
 engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
