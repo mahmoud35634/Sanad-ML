@@ -164,12 +164,13 @@ if st.button("Show Co-Purchased Items") and selected_brand:
         # Display results
         if df.empty:
             st.info("No co-purchased items found for the selected criteria.")
+            st.code(main_query, language='sql')
         else:
             st.subheader(f"📦 Items frequently bought with **{selected_brand}**")
             st.dataframe(df)
 
             # Show SQL
-            st.code(main_query, language='sql')
+            
             st.write("Total Sales Value:", df["Total_Sales"].sum().round(0))
 
         # 🔍 Show Order Numbers
