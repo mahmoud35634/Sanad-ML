@@ -67,21 +67,6 @@ def get_items_for_brand(brand):
 
 # Load items for selected brand
 items_list_df = get_items_for_brand(selected_brand) if selected_brand else pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION"])
-selected_brand = st.selectbox("🔍Choose a Brand", options=items_list_df)
-
-
-def get_category(brand):
-        with engine.connect() as conn:
-            query = f"""
-                SELECT DISTINCT right(MG2, LEN(MG2) - CHARINDEX('|', MG2)) AS Category
-                FROM MP_Items  
-                WHERE RIGHT(MASTER_BRAND, LEN(MASTER_BRAND) - CHARINDEX('|', MASTER_BRAND)) = '{brand}'            
-            """
-        return pd.read_sql(query, conn)
-
-
-category_list_df = get_category(selected_brand) if selected_brand else pd.DataFrame(columns=["Category"])
-seleted_category = st.selectbox("🔍Choose a Category", options=category_list_df["Category"].tolist() if not category_list_df.empty else ["No Categories Available"])
 
 # --- Initialize session state ---
 if "selected_code" not in st.session_state:
@@ -143,7 +128,6 @@ if st.button("Show Co-Purchased Items") and selected_brand:
         with engine.connect() as conn:
             gov_condition = f" AND c.GOVERNER_NAME = N'{selected_governerment}'" if selected_governerment else ""
             brand_item_filter = f" AND i.ITEM_CODE = '{st.session_state.selected_code}'" if st.session_state.selected_code else ""
-            category_item_filter = f" AND i.MG2 = '{st.session_state.selected_description}'" if st.session_state.selected_description else ""
 
             # Subquery: Orders that include the selected brand
             brand_orders_query = f"""
@@ -153,19 +137,11 @@ if st.button("Show Co-Purchased Items") and selected_brand:
                 LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
                 WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
                   AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                  {gov_condition} {brand_item_filter} {category_item_filter}
+                  {gov_condition} {brand_item_filter}
             """
 
+            # Main query: Co-purchased items
             main_query = f"""
-                WITH BrandOrders AS (
-                    SELECT DISTINCT s.Order_Number
-                    FROM MP_Sales s
-                    LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
-                    LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                    WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
-                    AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                    {gov_condition} {brand_item_filter}
-                )
                 SELECT TOP {int(top_rows)}
                     i.DESCRIPTION AS Item_Description,
                     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Brand,
@@ -175,13 +151,14 @@ if st.button("Show Co-Purchased Items") and selected_brand:
                 FROM MP_Sales s
                 LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
                 LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                INNER JOIN BrandOrders bo ON s.Order_Number = bo.Order_Number
-                WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
-                AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                {gov_condition}
+                WHERE s.Order_Number IN ({brand_orders_query})
+                  AND RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
+                  AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+                  {gov_condition} 
                 GROUP BY i.DESCRIPTION, i.MASTER_BRAND
                 ORDER BY Distinct_Orders DESC
             """
+
             df = pd.read_sql(main_query, conn)
 
         # Display results
