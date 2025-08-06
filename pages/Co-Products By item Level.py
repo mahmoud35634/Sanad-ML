@@ -14,8 +14,6 @@ connection_string = (
         "PWD=Z2RhdGFzdHVkaW8=;"       # ← Replace with actual password
 
 )
-params = urllib.parse.quote_plus(connection_string)
-engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 
 # --- UI ---
 st.title("🛍️ Co-Purchased Items by Brand")
@@ -170,7 +168,7 @@ if st.button("Show Co-Purchased Items") and selected_brand:
             st.dataframe(df)
 
             # Show SQL
-            st.code(main_query, language='sql')
+            #st.code(main_query, language='sql')
             st.write("Total Sales Value:", df["Total_Sales"].sum().round(0))
 
         # 🔍 Show Order Numbers
