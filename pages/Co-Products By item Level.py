@@ -80,7 +80,8 @@ def get_category(brand):
         return pd.read_sql(query, conn)
 
 
-category_list = get_category() if selected_brand else pd.DataFrame(columns=["Category"])
+category_list_df = get_category(selected_brand) if selected_brand else pd.DataFrame(columns=["Category"])
+seleted_category = st.selectbox("🔍Choose a Category", options=category_list_df["Category"].tolist() if not category_list_df.empty else ["No Categories Available"])
 
 # --- Initialize session state ---
 if "selected_code" not in st.session_state:
