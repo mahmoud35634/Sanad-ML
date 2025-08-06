@@ -37,10 +37,10 @@ if not st.session_state[BI_key] and not st.session_state[TRADE_key]:
     if st.button("Login"):
         if password == BI_PASSWORD:
             st.session_state[BI_key] = True
-            st.experimental_rerun()
+            st.rerun()
         elif password == Trade_password:
             st.session_state[TRADE_key] = True
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Incorrect password ❌")
     st.stop()
