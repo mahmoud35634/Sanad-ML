@@ -28,7 +28,7 @@ def load_data():
         df_customers = pickle.load(f)
 
     return user_item, item_sim_df, df_items, df_customers
-
+user_item, item_sim_df, df_items, df_customers = load_data()
 # --- Title ---
 st.title("🛍️ Product Recommender for Alex Customers")
 st.write("Enter a customer B2B ID to get personalized product recommendations. This tool uses collaborative filtering to suggest items based on past purchases. only for Alex Customers")
