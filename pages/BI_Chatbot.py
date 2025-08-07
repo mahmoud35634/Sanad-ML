@@ -139,6 +139,7 @@ project_id, company, Org_ID, InvoiceId, etc.
 Note:
 
 Do not use the month column — always extract month from Date.
+always round the sales value to 0 decimal places using ROUND(Netsalesvalue, 0) 
 
 2. MP_Customers (Customer Master)
 Joins:
