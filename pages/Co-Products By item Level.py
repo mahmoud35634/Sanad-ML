@@ -200,7 +200,18 @@ if st.button("Show Co-Purchased Items") and selected_brand:
             st.dataframe(df)
 
             # Show SQL
-            st.code(main_query, language='sql')
+            # Are you sure you want to show the SQL query?
+            # Are you the one of the developers who can see the SQL query?
+            st.write("🔍 **SQL Query**"
+                )
+            password = st.text_input("Enter password to view SQL query:", type="password")
+            if password == "BI_ADMIN2025":
+                st.success("Access granted! Here is the SQL query:")
+                st.code(main_query, language='sql')
+            else:
+                st.error("Access denied! You cannot view the SQL query.")
+                main_query = "You do not have permission to view the SQL query."
+           
             st.write("Total Sales Value:", df["Total_Sales"].sum().round(0))
 
         # 🔍 Show Order Numbers
