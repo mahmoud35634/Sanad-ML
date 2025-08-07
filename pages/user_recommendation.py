@@ -1,10 +1,23 @@
 import streamlit as st
 import pickle
 import pandas as pd
-
+import os
 # --- Load precomputed files ---
+# --- Load precomputed files safely ---
 @st.cache_data
 def load_data():
+    required_files = {
+        "user_item.pkl": None,
+        "item_sim_df.pkl": None,
+        "df_items.pkl": None,
+        "df_customers.pkl": None
+    }
+
+    for file in required_files:
+        if not os.path.exists(file):
+            st.error(f"❌ Required file not found: `{file}`. Please make sure it's included in your deployment.")
+            st.stop()
+
     with open("user_item.pkl", "rb") as f:
         user_item = pickle.load(f)
     with open("item_sim_df.pkl", "rb") as f:
@@ -13,9 +26,8 @@ def load_data():
         df_items = pickle.load(f)
     with open("df_customers.pkl", "rb") as f:
         df_customers = pickle.load(f)
-    return user_item, item_sim_df, df_items, df_customers
 
-user_item, item_sim_df, df_items, df_customers = load_data()
+    return user_item, item_sim_df, df_items, df_customers
 
 # --- Title ---
 st.title("🛍️ Product Recommender for Alex Customers")
