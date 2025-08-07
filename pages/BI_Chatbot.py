@@ -16,7 +16,7 @@ from time import time
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-
+st.header("This is a Sanad BI Chatbot , only for BI developers and Trade users if access is granted")
 # Authentication for BI and Trade access
 # This is for the BI access
 BI_PASSWORD = "BI_admin"  
