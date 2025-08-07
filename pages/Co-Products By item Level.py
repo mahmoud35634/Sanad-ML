@@ -43,6 +43,9 @@ def get_govermant_list():
 brand_list = get_brand_list()
 governer_list = get_govermant_list()
 
+
+
+
 # Step 2: UI components
 selected_brand = st.selectbox("🔍Choose a Brand", options=brand_list)
 selected_governerment = st.selectbox("🏙️ (Optional) Choose a Governorate", options=[""] + governer_list)
@@ -54,6 +57,8 @@ date_range = st.date_input(
     min_value=datetime.date(2023, 1, 1),
     max_value=datetime.date.today()
 )
+
+
 
 # --- Get item list for selected brand ---
 def get_items_for_brand(brand):
@@ -68,6 +73,21 @@ def get_items_for_brand(brand):
 # Load items for selected brand
 items_list_df = get_items_for_brand(selected_brand) if selected_brand else pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION"])
 
+
+
+def get_category_list():
+    with engine.connect() as conn:
+        query = f"""
+            SELECT DisTinct Right(MG2, LEN(MG2) - CHARINDEX('|', MG2)) AS Category
+            FROM MP_Items  
+        """
+        result = pd.read_sql(query, conn)
+        return result["Category"].dropna().unique().tolist() 
+    
+category_list_df = get_category_list() 
+selected_category = st.selectbox("🏙️ (Optional) Choose a Category", options=[""] + category_list_df)
+
+    
 # --- Initialize session state ---
 if "selected_code" not in st.session_state:
     st.session_state.selected_code = ""
@@ -128,6 +148,7 @@ if st.button("Show Co-Purchased Items") and selected_brand:
         with engine.connect() as conn:
             gov_condition = f" AND c.GOVERNER_NAME = N'{selected_governerment}'" if selected_governerment else ""
             brand_item_filter = f" AND i.ITEM_CODE = '{st.session_state.selected_code}'" if st.session_state.selected_code else ""
+            category_item_filter = f" AND  Right(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) = N'{selected_category}'" if selected_category else ""
 
             # Subquery: Orders that include the selected brand
             brand_orders_query = f"""
@@ -142,6 +163,15 @@ if st.button("Show Co-Purchased Items") and selected_brand:
 
             # Main query: Co-purchased items
             main_query = f"""
+                WITH BrandOrders AS (
+                    SELECT DISTINCT s.Order_Number
+                    FROM MP_Sales s
+                    LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
+                    LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
+                    WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
+                    AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+                    {gov_condition} {brand_item_filter}
+                )
                 SELECT TOP {int(top_rows)}
                     i.DESCRIPTION AS Item_Description,
                     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Brand,
@@ -151,26 +181,26 @@ if st.button("Show Co-Purchased Items") and selected_brand:
                 FROM MP_Sales s
                 LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
                 LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                WHERE s.Order_Number IN ({brand_orders_query})
-                  AND RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
-                  AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                  {gov_condition} 
+                INNER JOIN BrandOrders bo ON s.Order_Number = bo.Order_Number
+                WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
+                AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+                {gov_condition} {category_item_filter}
                 GROUP BY i.DESCRIPTION, i.MASTER_BRAND
                 ORDER BY Distinct_Orders DESC
             """
+
 
             df = pd.read_sql(main_query, conn)
 
         # Display results
         if df.empty:
             st.info("No co-purchased items found for the selected criteria.")
-            st.code(main_query, language='sql')
         else:
             st.subheader(f"📦 Items frequently bought with **{selected_brand}**")
             st.dataframe(df)
 
             # Show SQL
-            
+            st.code(main_query, language='sql')
             st.write("Total Sales Value:", df["Total_Sales"].sum().round(0))
 
         # 🔍 Show Order Numbers
