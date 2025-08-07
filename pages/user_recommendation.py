@@ -22,7 +22,25 @@ st.title("🛍️ Product Recommender for Alex Customers")
 st.write("Enter a customer B2B ID to get personalized product recommendations. This tool uses collaborative filtering to suggest items based on past purchases. only for Alex Customers")
 
 # --- Input ---
-customer_id = st.text_input("🔑 Enter Customer B2B ID", "")
+customer_ids = user_item.index.tolist()
+
+customer_names = df_customers.set_index('id')['name'].to_dict()
+# Create a dictionary for customer names
+customer_names_dict = {cid: customer_names.get(cid, "Unknown Customer") for cid in customer_ids}    
+# Create a dropdown with customer names
+selected_customer = st.selectbox(
+    "Select Customer B2B ID",
+    options=customer_ids,
+    format_func=lambda x: f"{x} - {customer_names_dict.get(x, 'Unknown Customer')}",
+    index=0
+)
+# Display customer names in the dropdown
+# If the user selects a customer from the dropdown, use that ID
+if selected_customer:
+    customer_id = selected_customer
+else:
+    # Otherwise, allow manual input
+    customer_id = st.text_input("Enter Customer B2B ID", value="", placeholder="e.g., 12345")
 
 # --- Optional filters ---
 # with st.expander("⚙️ Filter by"):
@@ -30,7 +48,7 @@ customer_id = st.text_input("🔑 Enter Customer B2B ID", "")
 top_n = st.slider("Number of Recommendations", 1, 20, 5)
 
 # --- Recommendation Function ---
-def recommend_for_customer(customer_id, top_n=top_n, item_metadata=None, filter_by=None):
+def recommend_for_customer(customer_id, top_n=5, item_metadata=None):
     if customer_id not in user_item.index:
         return []
 
@@ -42,31 +60,37 @@ def recommend_for_customer(customer_id, top_n=top_n, item_metadata=None, filter_
     for item in purchased_items:
         similar_items = item_sim_df[item].drop(index=purchased_items)
 
-        if item_metadata is not None and filter_by and filter_by != "None":
+        # Optional: boost similar items by metadata (brand/category)
+        if item_metadata is not None:
             item_info = item_metadata.set_index('ItemId')
             if item in item_info.index:
-                item_value = item_info.loc[item, filter_by]
-                matching_items = item_info[item_info[filter_by] == item_value].index
-                similar_items[similar_items.index.isin(matching_items)] *= 1.2  # boost similar category/brand
+                item_row = item_info.loc[item]
+
+                # Match items with the same brand or category
+                mask = (item_info['Brand'] == item_row['Brand']) | (item_info['Category'] == item_row['Category'])
+                boost_ids = item_info[mask].index
+                similar_items[similar_items.index.isin(boost_ids)] *= 1.2  # boost similar metadata
 
         scores = scores.add(similar_items, fill_value=0)
 
-    if item_metadata is not None and filter_by and filter_by != "None":
+    # Optional: filter final recommendations by metadata consistency
+    if item_metadata is not None:
         purchased_info = item_metadata[item_metadata['ItemId'].isin(purchased_items)]
-        target_values = purchased_info[filter_by].unique()
-        valid_items = item_metadata[item_metadata[filter_by].isin(target_values)]['ItemId']
+        target_values = purchased_info[['Brand', 'Category']].drop_duplicates()
+        valid_items = item_metadata.merge(target_values, on=['Brand', 'Category'])['ItemId']
         scores = scores[scores.index.isin(valid_items)]
 
     return scores.sort_values(ascending=False).head(top_n).index.tolist()
 
+
 #show customer name corresponding to the customer_id
 if customer_id.strip() != "":
     if customer_id in df_customers['id'].values:
-        user_item.name = df_customers[df_customers['id'] == customer_id]['name'].values[0]
+        customer_name = df_customers[df_customers['id'] == customer_id]['name'].values[0]
     else:
-        user_item.name = "Unknown Customer"
-# Display Customer Name
-st.write(f"🔍 Recommendations for Customer: `{user_item.name}` (ID: `{customer_id}`)")
+        customer_name = "Unknown Customer"
+    st.write(f"🔍 Recommendations for Customer: `{customer_name}` (ID: `{customer_id}`)")
+
 # --- Display Recommendations ---
 if st.button("🔍 Show Recommendations") and customer_id.strip() != "":
     recommendations = recommend_for_customer(
