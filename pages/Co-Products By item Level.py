@@ -19,6 +19,7 @@ engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 # --- UI ---
 st.title("🛍️ Co-Purchased Items by Brand")
 
+#
 # Step 1: Load brand & governorate lists
 @st.cache_data
 def get_brand_list():
@@ -138,92 +139,105 @@ if st.session_state.selected_code and st.session_state.selected_description:
 top_rows = st.number_input("🔢 Select Top Rows", min_value=1, max_value=100, value=20, step=1)
 
 # Step 5: Action button
+if "show_results" not in st.session_state:
+    st.session_state.show_results = False
+
 if st.button("Show Co-Purchased Items") and selected_brand:
-    if len(date_range) != 2:
-        st.warning("Please select a valid start and end date.")
-    else:
-        start_date = date_range[0].strftime('%Y-%m-%d')
-        end_date = date_range[1].strftime('%Y-%m-%d')
+    st.session_state.show_results = True
 
-        with engine.connect() as conn:
-            gov_condition = f" AND c.GOVERNER_NAME = N'{selected_governerment}'" if selected_governerment else ""
-            brand_item_filter = f" AND i.ITEM_CODE = '{st.session_state.selected_code}'" if st.session_state.selected_code else ""
-            category_item_filter = f" AND  Right(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) = N'{selected_category}'" if selected_category else ""
+if st.session_state.show_results:
+    start_date = date_range[0].strftime('%Y-%m-%d')
+    end_date = date_range[1].strftime('%Y-%m-%d')
 
-            # Subquery: Orders that include the selected brand
-            brand_orders_query = f"""
-                SELECT DISTINCT s.Order_Number
-                FROM MP_Sales s
-                LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
-                LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
-                  AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                  {gov_condition} {brand_item_filter}
-            """
+    gov_condition = f" AND c.GOVERNER_NAME = N'{selected_governerment}'" if selected_governerment else ""
+    brand_item_filter = f" AND i.ITEM_CODE = '{st.session_state.selected_code}'" if st.session_state.selected_code else ""
+    category_item_filter = f" AND Right(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) = N'{selected_category}'" if selected_category else ""
 
-            # Main query: Co-purchased items
-            main_query = f"""
-                WITH BrandOrders AS (
-                    SELECT DISTINCT s.Order_Number
-                    FROM MP_Sales s
-                    LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
-                    LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                    WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
-                    AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                    {gov_condition} {brand_item_filter}
-                )
-                SELECT TOP {int(top_rows)}
-                    i.DESCRIPTION AS Item_Description,
-                    RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Brand,
-                    COUNT(DISTINCT s.Order_Number) AS Distinct_Orders,
-                    Round(SUM(s.NetSalesValue),0) AS Total_Sales,
-                    SUM(s.SalesQtyInCases) AS Total_Cases
-                FROM MP_Sales s
-                LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
-                LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
-                INNER JOIN BrandOrders bo ON s.Order_Number = bo.Order_Number
-                WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
-                AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-                {gov_condition} {category_item_filter}
-                GROUP BY i.DESCRIPTION, i.MASTER_BRAND
-                ORDER BY Distinct_Orders DESC
-            """
+    # Save queries in session state
+    st.session_state.brand_orders_query = f"""
+        SELECT DISTINCT s.Order_Number
+        FROM MP_Sales s
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
+        LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
+        WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
+          AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+          {gov_condition} {brand_item_filter}
+    """
 
+    st.session_state.main_query = f"""
+        WITH BrandOrders AS (
+            SELECT DISTINCT s.Order_Number
+            FROM MP_Sales s
+            LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE 
+            LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
+            WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
+            AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+            {gov_condition} {brand_item_filter}
+        )
+        SELECT TOP {int(top_rows)}
+            i.DESCRIPTION AS Item_Description,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Brand,
+            COUNT(DISTINCT s.Order_Number) AS Distinct_Orders,
+            Round(SUM(s.NetSalesValue),0) AS Total_Sales,
+            SUM(s.SalesQtyInCases) AS Total_Cases
+        FROM MP_Sales s
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
+        INNER JOIN BrandOrders bo ON s.Order_Number = bo.Order_Number
+        WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
+        AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
+        {gov_condition} {category_item_filter}
+        GROUP BY i.DESCRIPTION, i.MASTER_BRAND
+        ORDER BY Distinct_Orders DESC
+    """
 
-            df = pd.read_sql(main_query, conn)
+    with engine.connect() as conn:
+        st.session_state.df = pd.read_sql(st.session_state.main_query, conn)
 
-        # Display results
-        if df.empty:
-            st.info("No co-purchased items found for the selected criteria.")
-        else:
-            st.subheader(f"📦 Items frequently bought with **{selected_brand}**")
-            st.dataframe(df)
+# Now show the results, even after rerun
+if st.session_state.get("df") is not None:
+    df = st.session_state.df
 
-            # Show SQL
-            # Are you sure you want to show the SQL query?
-            # Are you the one of the developers who can see the SQL query?
-            st.write("🔍 **SQL Query**"
-                )
-            password = st.text_input("Enter password to view SQL query:", type="password")
-            if password == "BI_ADMIN2025":
-                st.success("Access granted! Here is the SQL query:")
-                st.code(main_query, language='sql')
-            else:
-                st.error("Access denied! You cannot view the SQL query.")
-                main_query = "You do not have permission to view the SQL query."
-           
-            st.write("Total Sales Value:", df["Total_Sales"].sum().round(0))
+    st.subheader(f"📦 Items frequently bought with **{selected_brand}**")
+    st.dataframe(df)
 
-        # 🔍 Show Order Numbers
-        with engine.connect() as conn:
-            orders_df = pd.read_sql(brand_orders_query, conn)
+    # Password protection for SQL
+    if "power_bi_pass" not in st.session_state and "user_password" not in st.session_state:
+        st.session_state.power_bi_pass = False
+        st.session_state.user_password = False
 
-        if not orders_df.empty:
-            with st.expander("🧾 View Orders That Included Selected Brand"):
-                st.dataframe(orders_df)
+    if not st.session_state.power_bi_pass and not st.session_state.user_password:
+        st.subheader("🔒 If you are the one of developers of the app enter password for developers if not continue")
+        password_input = st.text_input("Enter password to view SQL", type="password", key="sql_password_input")
+        if password_input == "2392000":
+            st.session_state.power_bi_pass = True
+            st.success("✅ Password correct! Showing SQL query:")
+        elif password_input == "trade_pass":
+            st.session_state.user_password = True
+            st.success("✅ Password correct! Showing SQL query:")
+        elif password_input:
+            st.error("❌ Incorrect password.")
 
-            selected_order = st.selectbox("🔢 Select an Order to Inspect", options=orders_df["Order_Number"].unique())
-            st.session_state["selected_order_number"] = selected_order
+    if st.session_state.power_bi_pass:
+        st.write("🔍 **SQL Query Used**")
+        st.code(st.session_state.main_query, language='sql')
+        st.write("💰 Total Sales Value:", df["Total_Sales"].sum().round(0))
+
+    if st.session_state.user_password:
+
+        st.write("💰 Total Sales Value:", df["Total_Sales"].sum().round(0))
+
+    # Show brand orders
+    with engine.connect() as conn:
+        orders_df = pd.read_sql(st.session_state.brand_orders_query, conn)
+
+    if not orders_df.empty:
+        with st.expander("🧾 View Orders That Included Selected Brand"):
+            st.dataframe(orders_df)
+
+        selected_order = st.selectbox("🔢 Select an Order to Inspect", options=orders_df["Order_Number"].unique())
+        st.session_state["selected_order_number"] = selected_order
+
 
 # Show Order Details
 if "selected_order_number" in st.session_state:
@@ -258,3 +272,6 @@ if "selected_order_number" in st.session_state:
         st.write("📊 **Order Details**")
         st.bar_chart(detail_df.set_index("Item_Description")["NetSalesValue"])
         st.write("net_sales_value", detail_df["NetSalesValue"].sum().round(0))
+
+
+
