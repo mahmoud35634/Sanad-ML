@@ -5,13 +5,13 @@ import pandas as pd
 # --- Load precomputed files ---
 @st.cache_data
 def load_data():
-    with open("user_item.pkl", "rb") as f:
+    with open("./user_item.pkl", "rb") as f:
         user_item = pickle.load(f)
-    with open("item_sim_df.pkl", "rb") as f:
+    with open("./item_sim_df.pkl", "rb") as f:
         item_sim_df = pickle.load(f)
-    with open("df_items.pkl", "rb") as f:
+    with open("./df_items.pkl", "rb") as f:
         df_items = pickle.load(f)
-    with open("df_customers.pkl", "rb") as f:
+    with open("./df_customers.pkl", "rb") as f:
         df_customers = pickle.load(f)
     return user_item, item_sim_df, df_items, df_customers
 
