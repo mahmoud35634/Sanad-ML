@@ -57,32 +57,6 @@ st.markdown("Welcome to Our Chatbot! Ask your SQL queries and get answers in rea
 
 
 
-# welcome_text = "مرحبا بك في دردشة  مع Sanad."
-# #audio key to track if audio has been played
-# # This key is used to ensure the audio is played only once per session
-# page_key = "welcome_played_chatbot"
-
-# # Only generate and play audio if it hasn't been played yet for this page
-# if not st.session_state.get(page_key, False):
-#     tts = gTTS(welcome_text, lang='ar')
-#     audio_fp = BytesIO()
-#     tts.write_to_fp(audio_fp)
-#     audio_fp.seek(0)
-#     b64_audio = base64.b64encode(audio_fp.read()).decode()
-
-#     # Embed auto-playing hidden audio
-#     audio_html = f"""
-#     <audio autoplay hidden>
-#       <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
-#     </audio>
-#     """
-#     st.markdown(audio_html, unsafe_allow_html=True)
-#     # Set the flag so it doesn't play again
-#     st.session_state[page_key] = True
-
-
-
-
 
 # Display logo at the top
 col1, col2, col3 = st.columns([1, 2, 1])
