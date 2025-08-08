@@ -1,8 +1,0 @@
-streamlit
-pandas
-sqlalchemy
-pyodbc
-python-dotenv
-google-generativeai
-joblib
-gspread
