@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import pyodbc
 
+
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🔒 Please login first from the Home page.")
+    st.stop()
 st.title("💬 You Can Query here for Sanad Warehouse")
 
 # SQL Server connection

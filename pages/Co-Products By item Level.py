@@ -4,6 +4,9 @@ import urllib
 from sqlalchemy import create_engine
 import datetime
 
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🔒 Please login first from the Home page.")
+    st.stop()
 # --- Database Connection ---
 secrets = st.secrets["database"]
 

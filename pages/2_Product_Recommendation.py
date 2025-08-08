@@ -2,7 +2,9 @@ import streamlit as st
 import joblib
 
 st.title("🛒 Product Recommender")
-
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🔒 Please login first from the Home page.")
+    st.stop()
 @st.cache_resource
 def load_models():
     sim_df = joblib.load("item_similarity.pkl")

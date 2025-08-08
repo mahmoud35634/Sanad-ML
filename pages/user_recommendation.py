@@ -3,6 +3,10 @@ import pickle
 import pandas as pd
 import os
 
+
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🔒 Please login first from the Home page.")
+    st.stop()
 # --- Load precomputed files safely ---
 @st.cache_data
 def load_data():
