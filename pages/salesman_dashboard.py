@@ -59,7 +59,7 @@ if not st.session_state.logged_in:
         user_data = SALES_CREDENTIALS.get(username)
         if user_data and user_data["password"] == password:
             st.session_state.logged_in = True
-            st.session_state.salesman = user_data["salesman"]
+            st.session_state.salesman = user_data.get("sr_name", username)
             st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
         else:
             st.sidebar.error("Invalid username or password")
