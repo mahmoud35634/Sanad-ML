@@ -7,15 +7,14 @@ st.title("💬 You Can Query here for Sanad Warehouse")
 # SQL Server connection
 @st.cache_resource
 def connect_to_sql():
+
+    secrets = st.secrets["database"]
     conn = pyodbc.connect(
-
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=web.speed.live;"
-        "DATABASE=Sanad1;"
-        "UID=gdatastudio;"       # ← Replace with actual username
-        "PWD=Z2RhdGFzdHVkaW8=;"       # ← Replace with actual password
-
-
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"SERVER={secrets['server']};"
+        f"DATABASE={secrets['database']};"
+        f"UID={secrets['username']};"
+        f"PWD={secrets['password']};"
     )
     return conn
 

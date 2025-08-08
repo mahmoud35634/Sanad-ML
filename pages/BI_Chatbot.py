@@ -69,15 +69,17 @@ with col2:
 
 @st.cache_resource
 def connect_db():
-   return pyodbc.connect(
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=web.speed.live;"
-        "DATABASE=Sanad1;"
-        "UID=gdatastudio;"       # ← Replace with actual username
-        "PWD=Z2RhdGFzdHVkaW8=;"       # ← Replace with actual password
+    secrets = st.secrets["database"]
+    conn = pyodbc.connect(
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"SERVER={secrets['server']};"
+        f"DATABASE={secrets['database']};"
+        f"UID={secrets['username']};"
+        f"PWD={secrets['password']};"
     )
-conn = connect_db()
+    return conn
 
+conn = connect_db()
 
 def Schema_description ():
 # Define schema-aware base prompt
