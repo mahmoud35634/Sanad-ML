@@ -1,7 +1,43 @@
 import streamlit as st
 
-# Page setup
+# --- LOGIN SYSTEM ---
+
+# Initialize login session state
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "username" not in st.session_state:
+    st.session_state.username = None
+if "role" not in st.session_state:
+    st.session_state.role = None
+
+# Login handler
+def login(username, password):
+    users = st.secrets["users"]
+    if username in users and users[username]["password"] == password:
+        st.session_state.logged_in = True
+        st.session_state.username = username
+        st.session_state.role = users[username]["role"]
+    else:
+        st.error("❌ Invalid username or password.")
+
+# Login form
+if not st.session_state.logged_in:
+    st.set_page_config(page_title="Login | Sanad Analytics", layout="centered")
+    st.title("🔐 Sanad Analytics Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        login(username, password)
+    st.stop()
+
+# --- MAIN APP CONTENT STARTS HERE ---
 st.set_page_config(page_title="Sanad Analytics", layout="centered")
+
+# Optional sidebar logout
+st.sidebar.success(f"✅ Logged in as: {st.session_state.username} ({st.session_state.role})")
+if st.sidebar.button("Logout"):
+    st.session_state.logged_in = False
+    st.rerun()
 
 # --- Logo and Title ---
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -53,7 +89,7 @@ a {
 </style>
 """, unsafe_allow_html=True)
 
-# --- Tools: (icon, title, description, page_name)
+# --- Tools: (icon, title, description, page_name) ---
 tools = [
     ("🧮", "SQL Server", "Query the database using SQL directly.", "SQL_Server"),
     ("🧠", "SQL Chatbot", "Ask questions using natural language and get data-driven answers.", "3_SQL_Chatbot"),
@@ -71,7 +107,6 @@ for icon, title, description, page in tools:
             <div class="tool-title"><span class="tool-icon">{icon}</span>{title}</div>
             <div class="tool-desc">{description}</div>
         </div>
- 
     """, unsafe_allow_html=True)
 
 st.markdown("---")
