@@ -9,6 +9,7 @@ from google.oauth2.service_account import Credentials
 import json
 
 
+SALES_CREDENTIALS = st.secrets["SALES_CREDENTIALS"]
 
 # Get column indices (make sure these names exactly match the header)
 category_col_name = "Sction SR"  
@@ -32,13 +33,13 @@ engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 def connect_to_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],  # reads directly from secrets
+        st.secrets["gcp_service_account"],
         scopes=scopes
     )
     client = gspread.authorize(creds)
     sheet_id = "16IxEZH4goUOiRloFhYayGhRO-K6t_aXMl8nscHdPzhc"
     workbook = client.open_by_key(sheet_id)
-    sheet = workbook.get_worksheet(2)  # 3rd index = 4th sheet
+    sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
     return sheet
 
 
