@@ -2,26 +2,27 @@ import streamlit as st
 import pandas as pd
 import pyodbc
 
-st.title("💬 You Can Query here for Sanad Warehouse")
 
-# Authentication for BI and Trade access
 # This is for the BI access
-BI_PASSWORD = "BI_admin"  
-BI_key = "auth_bi"
+BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
+BI_KEY = st.secrets["auth"]["BI_KEY"]
 
 
-if BI_key not in st.session_state:
-    st.session_state[BI_key] = False
+if BI_KEY not in st.session_state:
+    st.session_state[BI_KEY] = False
 
-if not st.session_state[BI_key] :
+if not st.session_state[BI_KEY] :
     password = st.text_input("Enter password to access", type="password")
     if st.button("Login"):
         if password == BI_PASSWORD:
-            st.session_state[BI_key] = True
+            st.session_state[BI_KEY] = True
             st.rerun()
         else:
             st.error("Incorrect password ❌")
     st.stop()
+
+st.title("💬 You Can Query here for Sanad Warehouse")
+
 
 # Display a welcome message
 # SQL Server connection
