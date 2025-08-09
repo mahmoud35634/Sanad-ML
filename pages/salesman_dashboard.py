@@ -199,45 +199,42 @@ else:
 
 # Step 1: Load customer info from database
 @st.cache_data
-def get_customers_B2B():
+def get_customers_B2B(sanad_id):
+    if not sanad_id:
+        return pd.DataFrame()  # No selection yet
     with engine.connect() as conn:
         query = f"""
- 
-SELECT 
-	c.CUSTOMER_B2B_ID as sanad_id,
-	Cast(s.date as date) as Date,
-	Right(i.MASTER_BRAND,len(i.MASTER_BRAND)-CHARINDEX('|',i.MASTER_BRAND)) as Company,
-	Right(i.MG2,len(i.MG2)-CHARINDEX('|',i.MG2)) as Category,
-	i.ITEM_CODE,
-	i.DESCRIPTION ,
-	SUM(s.Netsalesvalue) as Sales,
-	SUM(s.SalesQtyInCases) as TotalQty
-
-From
-	MP_Sales s
-Left join 
-	MP_Customers c
-on 
-	s.CustomerID = c.SITE_NUMBER
-LEFT JOIN	
-	MP_Items i
-on 
-	s.ItemId = i.ITEM_CODE
-Where 
-	s.Date >= '2025-06-01' and c.CUSTOMER_B2B_ID = '{st.session_state.selected_sanad}' and i.ITEM_CODE not like '%XE%'
-group by 
-	c.CUSTOMER_B2B_ID ,
-	Cast(s.date as date) ,
-	Right(i.MASTER_BRAND,len(i.MASTER_BRAND)-CHARINDEX('|',i.MASTER_BRAND)) ,
-	Right(i.MG2,len(i.MG2)-CHARINDEX('|',i.MG2)) ,
-	i.ITEM_CODE,
-	i.DESCRIPTION 
-order by Sales DESC , TotalQty DESC
+        SELECT 
+            c.CUSTOMER_B2B_ID as sanad_id,
+            CAST(s.date AS date) AS Date,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
+            i.ITEM_CODE,
+            i.DESCRIPTION,
+            SUM(s.Netsalesvalue) AS Sales,
+            SUM(s.SalesQtyInCases) AS TotalQty
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c
+            ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i
+            ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= '2025-05-01'
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        GROUP BY 
+            c.CUSTOMER_B2B_ID,
+            CAST(s.date AS date),
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
+            i.ITEM_CODE,
+            i.DESCRIPTION
+        ORDER BY Sales DESC, TotalQty DESC
         """
-        result = pd.read_sql(query, conn)
-        return result
+        return pd.read_sql(query, conn)
+
 st.sidebar.subheader("B2B Customer Details")
-st.dataframe(get_customers_B2B(), use_container_width=True)
-    
 
-
+if st.session_state.selected_sanad:
+    df_b2b = get_customers_B2B(st.session_state.selected_sanad)
+    st.dataframe(df_b2b, use_container_width=True)
