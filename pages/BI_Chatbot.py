@@ -6,7 +6,6 @@ import pyodbc
 import pandas as pd
 from dotenv import load_dotenv
 import os
-from gtts import gTTS
 import base64
 from io import BytesIO
 from time import time
@@ -54,37 +53,6 @@ elif st.session_state[TRADE_key]:
 st.markdown("Welcome to Our Chatbot! Ask your SQL queries and get answers in real-time.")
 
 
-
-
-
-
-# welcome_text = "مرحبا بك في دردشة  مع Sanad."
-# #audio key to track if audio has been played
-# # This key is used to ensure the audio is played only once per session
-# page_key = "welcome_played_chatbot"
-
-# # Only generate and play audio if it hasn't been played yet for this page
-# if not st.session_state.get(page_key, False):
-#     tts = gTTS(welcome_text, lang='ar')
-#     audio_fp = BytesIO()
-#     tts.write_to_fp(audio_fp)
-#     audio_fp.seek(0)
-#     b64_audio = base64.b64encode(audio_fp.read()).decode()
-
-#     # Embed auto-playing hidden audio
-#     audio_html = f"""
-#     <audio autoplay hidden>
-#       <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
-#     </audio>
-#     """
-#     st.markdown(audio_html, unsafe_allow_html=True)
-#     # Set the flag so it doesn't play again
-#     st.session_state[page_key] = True
-
-
-
-
-
 # Display logo at the top
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
@@ -92,17 +60,20 @@ with col2:
 
 
 # Function to connect to the SQL Server database
-# This function uses pyodbc to connect to the database using ODBC Driver 17 for
 
 @st.cache_resource
 def connect_db():
-    return pyodbc.connect(
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=web.speed.live;"
-        "DATABASE=Sanad1;"
-        "Trusted_Connection=yes;"
+    db_config = st.secrets["database"]
+    connection_string = (
+        f"DRIVER={{{db_config['driver']}}};"
+        f"SERVER={db_config['server']};"
+        f"DATABASE={db_config['database']};"
+        f"UID={db_config['username']};"
+        f"PWD={db_config['password']}"
     )
+    return pyodbc.connect(connection_string)
 
+# Usage
 conn = connect_db()
 
 
