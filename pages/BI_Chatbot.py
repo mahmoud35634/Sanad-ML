@@ -16,43 +16,43 @@ from time import time
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+import streamlit as st
 
-# Authentication for BI and Trade access
-# This is for the BI access
-BI_PASSWORD = "BI_admin"  
-BI_key = "auth_bi_chat"
-# Trade password and key
-# This is for the Trade access
-Trade_password = "Trade_admin" 
-TRADE_key = "auth_trade_chat"
+# Load from secrets.toml
+BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
+BI_KEY = st.secrets["auth"]["BI_KEY"]
+TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD"]
+TRADE_KEY = st.secrets["auth"]["TRADE_KEY"]
 
-if BI_key not in st.session_state:
-    st.session_state[BI_key] = False
-if TRADE_key not in st.session_state:
-    st.session_state[TRADE_key] = False
+# Initialize session states
+if BI_KEY not in st.session_state:
+    st.session_state[BI_KEY] = False
+if TRADE_KEY not in st.session_state:
+    st.session_state[TRADE_KEY] = False
 
-if not st.session_state[BI_key] and not st.session_state[TRADE_key]:
+# Authentication check
+if not st.session_state[BI_KEY] and not st.session_state[TRADE_KEY]:
     st.title("🔐 Secure Access to Sanad Chatbot")
     password = st.text_input("Enter password to access", type="password")
     if st.button("Login"):
         if password == BI_PASSWORD:
-            st.session_state[BI_key] = True
+            st.session_state[BI_KEY] = True
             st.rerun()
-        elif password == Trade_password:
-            st.session_state[TRADE_key] = True
+        elif password == TRADE_PASSWORD:
+            st.session_state[TRADE_KEY] = True
             st.rerun()
         else:
             st.error("Incorrect password ❌")
     st.stop()
+
 # If authenticated, proceed with the app
-if st.session_state[BI_key]:
+if st.session_state[BI_KEY]:
     st.title("💬 BI Chatbot - BI Access")
-elif st.session_state[TRADE_key]:
+elif st.session_state[TRADE_KEY]:
     st.title("💬 BI Chatbot - Trade Access")
+
 # Display a welcome message
 st.markdown("Welcome to Our Chatbot! Ask your SQL queries and get answers in real-time.")
-
-
 # Display logo at the top
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:

@@ -2,22 +2,103 @@ import streamlit as st
 import pickle
 import pandas as pd
 import os
+import pickle, os, hashlib, requests, gzip, shutil
+from pathlib import Path
 
-# --- Load precomputed files safely ---
-@st.cache_data
-def load_data():
-    required_files = [
-        "user_item.pkl",
-        "item_sim_df.pkl",
-        "df_items.pkl",
-        "df_customers.pkl"
-    ]
+DATA_DIR = Path(".")  # keep current behavior
+DATA_DIR.mkdir(exist_ok=True)
 
-    for file in required_files:
-        if not os.path.exists(file):
-            st.error(f"❌ Required file not found: `{file}`. Please make sure it's included in your deployment.")
+# Map your required files to remote sources
+# Replace OWNER/REPO/v1 and checksums with your own.
+FILE_SOURCES = {
+    "user_item.pkl": {
+        "url": "https://github.com/OWNER/REPO/releases/download/v1/user_item.pkl.gz",
+        "sha256": "PUT_SHA256_OF_FINAL_PKL_HERE",  # optional
+        "gz": True
+    },
+    "item_sim_df.pkl": {
+        "url": "https://github.com/OWNER/REPO/releases/download/v1/item_sim_df.pkl.gz",
+        "sha256": "PUT_SHA256_HERE",
+        "gz": True
+    },
+    "df_items.pkl": {
+        "url": "https://github.com/OWNER/REPO/releases/download/v1/df_items.pkl.gz",
+        "sha256": "PUT_SHA256_HERE",
+        "gz": True
+    },
+    "df_customers.pkl": {
+        "url": "https://github.com/OWNER/REPO/releases/download/v1/df_customers.pkl.gz",
+        "sha256": "PUT_SHA256_HERE",
+        "gz": True
+    },
+    # If you switch to Parquet for df_items:
+    # "df_items.parquet": {"url": ".../df_items.parquet", "sha256": "...", "gz": False},
+}
+
+def sha256_of_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def download_with_progress(url: str, dest: Path, label: str):
+    with requests.get(url, stream=True, timeout=60) as r:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length", 0))
+        progress = st.progress(0, text=f"Downloading {label}...")
+        downloaded = 0
+        tmp = dest.with_suffix(dest.suffix + ".part")
+        with open(tmp, "wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total:
+                        progress.progress(min(downloaded / total, 1.0), text=f"Downloading {label}...")
+        tmp.replace(dest)
+        progress.progress(1.0, text=f"Downloaded {label}")
+
+def ensure_file(local_name: str, src: dict):
+    local_path = DATA_DIR / local_name
+    if local_path.exists():
+        return local_path
+
+    st.info(f"Missing {local_name}. Fetching from remote...")
+    url = src["url"]
+    gz = src.get("gz", False)
+
+    if gz:
+        gz_path = local_path.with_suffix(local_path.suffix + ".gz")
+        download_with_progress(url, gz_path, local_name)
+        st.write(f"Decompressing {local_name}...")
+        with gzip.open(gz_path, "rb") as f_in, open(local_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        gz_path.unlink(missing_ok=True)
+    else:
+        download_with_progress(url, local_path, local_name)
+
+    # Optional integrity check
+    expected = src.get("sha256")
+    if expected:
+        digest = sha256_of_file(local_path)
+        if digest.lower() != expected.lower():
+            local_path.unlink(missing_ok=True)
+            st.error(f"Checksum mismatch for {local_name}. Download aborted.")
             st.stop()
 
+    return local_path
+
+def ensure_artifacts():
+    for name, src in FILE_SOURCES.items():
+        ensure_file(name, src)
+
+# Call this before load_data()
+ensure_artifacts()
+
+@st.cache_resource(show_spinner=True)
+def load_data():
+    # Now your original code can stay the same, files are present locally.
     with open("user_item.pkl", "rb") as f:
         user_item = pickle.load(f)
     with open("item_sim_df.pkl", "rb") as f:
@@ -26,13 +107,9 @@ def load_data():
         df_items = pickle.load(f)
     with open("df_customers.pkl", "rb") as f:
         df_customers = pickle.load(f)
-
     return user_item, item_sim_df, df_items, df_customers
 
-# ✅ Load data BEFORE using it
 user_item, item_sim_df, df_items, df_customers = load_data()
-
-# --- Title ---
 st.title("🛍️ Product Recommender for Alex Customers")
 st.write("Enter a customer B2B ID to get personalized product recommendations. This tool uses collaborative filtering to suggest items based on past purchases. Only for Alex Customers.")
 
