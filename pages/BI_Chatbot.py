@@ -15,9 +15,6 @@ from time import time
 # API key should be set in a .env file
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-import streamlit as st
-
 # Load from secrets.toml
 BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
 BI_KEY = st.secrets["auth"]["BI_KEY"]
