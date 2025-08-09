@@ -7,7 +7,7 @@ st.title("🛒 Product Recommender")
 BI_PASSWORD = "BI_admin"  
 BI_key = "auth_bi_recommender"
 
-
+ 
 if BI_key not in st.session_state:
     st.session_state[BI_key] = False
 
