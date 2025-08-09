@@ -8,12 +8,7 @@ from google.oauth2.service_account import Credentials
 
 import json
 
-@st.cache_resource
-def load_sales_credentials():
-    with open("salesman_credentials.json", "r", encoding="utf-8") as f:
-        return json.load(f)
 
-SALES_CREDENTIALS = load_sales_credentials()
 
 # Get column indices (make sure these names exactly match the header)
 category_col_name = "Sction SR"  
@@ -201,6 +196,8 @@ else:
 @st.cache_data
 def get_customers_B2B(sanad_id):
     if not sanad_id:
+        st.warning("No SanadID selected. Please select a SanadID to view B2B details.")
+
         return pd.DataFrame()  # No selection yet
     with engine.connect() as conn:
         query = f"""
@@ -238,3 +235,5 @@ st.sidebar.subheader("B2B Customer Details")
 if st.session_state.selected_sanad:
     df_b2b = get_customers_B2B(st.session_state.selected_sanad)
     st.dataframe(df_b2b, use_container_width=True)
+
+
