@@ -62,6 +62,7 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.salesman = user_data["salesman"]
             st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
+            st.rerun()
         else:
             st.sidebar.error("Invalid username or password")
     st.stop()
