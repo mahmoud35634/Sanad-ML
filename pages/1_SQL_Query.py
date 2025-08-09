@@ -26,16 +26,20 @@ if not st.session_state[BI_key] :
 # Display a welcome message
 # SQL Server connection
 @st.cache_resource
-def connect_to_sql():
-    conn = pyodbc.connect(
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=web.speed.live;"
-        "DATABASE=Sanad1;"
-        "Trusted_Connection=yes;"
+def connect_db():
+    db_config = st.secrets["database"]
+    connection_string = (
+        f"DRIVER={{{db_config['driver']}}};"
+        f"SERVER={db_config['server']};"
+        f"DATABASE={db_config['database']};"
+        f"UID={db_config['username']};"
+        f"PWD={db_config['password']}"
     )
-    return conn
+    return pyodbc.connect(connection_string)
 
-conn = connect_to_sql()
+# Usage
+conn = connect_db()
+
 
 query = st.text_area("Enter your SQL query:", height=150)
 
