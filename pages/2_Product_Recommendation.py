@@ -4,19 +4,18 @@ import joblib
 st.title("🛒 Product Recommender")
 
 
-BI_PASSWORD = "BI_admin"  
-BI_key = "auth_bi_recommender"
-
+BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
+BI_KEY = st.secrets["auth"]["BI_KEY"]
  
-if BI_key not in st.session_state:
-    st.session_state[BI_key] = False
+if BI_KEY not in st.session_state:
+    st.session_state[BI_KEY] = False
 
-if not st.session_state[BI_key] :
+if not st.session_state[BI_KEY] :
     st.title("🔐 Secure Access to Sanad Chatbot")
     password = st.text_input("Enter password to access", type="password")
     if st.button("Login"):
         if password == BI_PASSWORD:
-            st.session_state[BI_key] = True
+            st.session_state[BI_KEY] = True
             st.rerun()
         else:
             st.error("Incorrect password ❌")
