@@ -36,41 +36,15 @@ engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 @st.cache_resource
 def connect_to_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],  # reads directly from secrets
+        scopes=scopes
+    )
     client = gspread.authorize(creds)
     sheet_id = "16IxEZH4goUOiRloFhYayGhRO-K6t_aXMl8nscHdPzhc"
     workbook = client.open_by_key(sheet_id)
-    sheet = workbook.get_worksheet(2)  # 4th sheet (index 3)
+    sheet = workbook.get_worksheet(2)  # 3rd index = 4th sheet
     return sheet
-
-
-
-# @st.cache_data
-# def get_salesman_info():
-#     sheet = connect_to_sheet()
-#     data = sheet.get_all_values()
-#     header = data[0]
-#     rows = data[1:]
-
-#     # Get index of "SR Name" column (check for exact name match)
-#     try:
-#         sr_col_idx = header.index("SR Name ")
-#     except ValueError:
-#         st.error("'SR Name' column not found. Check spelling/capitalization.")
-#         return []
-
-#     # Get unique salesman names
-#     sr_names = sorted(set(row[sr_col_idx] for row in rows if row[sr_col_idx].strip() != ""))
-#     return sr_names
-
-# salesman = st.selectbox(
-#     "Select Salesman",
-#     get_salesman_info(),
-#     index=0, ) # Default to first salesman)
-
-# selected_salesman = salesman.strip()
-# st.write(f"Selected Salesman: {selected_salesman}")
-
 
 
 
