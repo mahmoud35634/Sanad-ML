@@ -488,8 +488,6 @@ Input will be the first 6 digits of MASTER_BRAND
 Use:
 
 WHERE LEFT(MASTER_BRAND, CHARINDEX('|', MASTER_BRAND) - 1) = '692408'
-
-
     """
 
 

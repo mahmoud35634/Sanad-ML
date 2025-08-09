@@ -4,12 +4,15 @@ import urllib
 from sqlalchemy import create_engine
 import datetime
 
+
+db_config = st.secrets["database"]
 # --- Database Connection ---
 connection_string = (
-    "DRIVER={SQL Server};"
-    "SERVER=web.speed.live;"
-    "DATABASE=Sanad1;"
-    "Trusted_Connection=yes;"
+        f"DRIVER={{{db_config['driver']}}};"
+        f"SERVER={db_config['server']};"
+        f"DATABASE={db_config['database']};"
+        f"UID={db_config['username']};"
+        f"PWD={db_config['password']}"
 )
 params = urllib.parse.quote_plus(connection_string)
 engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
