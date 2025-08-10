@@ -133,6 +133,9 @@ Valid Governorate Values:
 (examples) القاهرة, الجيزة, الإسكندرية, أسوان, الأقصر, المنيا, القليوبية...
 ***USE Customer_B2B_ID for customer-related queries*** 
 
+if i asked the active customers return active that make purchased or orders
+and if i asked active net customers who make net sales (Netsalesvalue > 0 )
+
 
 3. MP_Items (Product Master)
 Joins:
