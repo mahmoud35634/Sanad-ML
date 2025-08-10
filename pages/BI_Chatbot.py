@@ -552,7 +552,6 @@ for idx in range(st.session_state.query_count):
         # Display previously stored result (if any)
 
         if idx < len(st.session_state.results) and st.session_state.results[idx] is not None:
-            st.code(sql_query, language="sql")
             st.dataframe(st.session_state.results[idx])
 
 
