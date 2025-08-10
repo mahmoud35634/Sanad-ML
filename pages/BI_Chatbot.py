@@ -16,6 +16,8 @@ from time import time
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # Load from secrets.toml
+
+Credentials = st.secrets["auth"]
 BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
 BI_KEY = st.secrets["auth"]["BI_KEY"]
 TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD"]
@@ -532,7 +534,7 @@ for idx in range(st.session_state.query_count):
 
                         df = pd.read_sql(sql_query, conn)
                         with st.expander(f"✅ Result for Query {idx + 1}"):
-                            if st.session_state[BI_key]:
+                            if st.session_state[BI_KEY]:
                                 st.code(sql_query, language="sql")
                             else:
                                 "Results are excuted "
