@@ -17,7 +17,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # Load from secrets.toml
 BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
-BI_KEY = st.secrets["auth"]["BI_KEY"]
+BI_KEY = st.secrets["auth"]["auth_bi_chat"]
 TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD"]
 TRADE_KEY = st.secrets["auth"]["TRADE_KEY"]
 
