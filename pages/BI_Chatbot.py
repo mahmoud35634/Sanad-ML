@@ -138,6 +138,8 @@ Valid Governorate Values:
 if i asked the active customers return active that make purchased or orders
 and if i asked active net customers who make net sales (Netsalesvalue > 1 )
 
+if i asked on goverment of data use  GOVERNER_NAME
+
 
 3. MP_Items (Product Master)
 Joins:
