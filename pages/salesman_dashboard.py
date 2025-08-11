@@ -37,7 +37,7 @@ def connect_to_sheet():
         scopes=scopes
     )
     client = gspread.authorize(creds)
-    sheet_id = "16IxEZH4goUOiRloFhYayGhRO-K6t_aXMl8nscHdPzhc"
+    sheet_id = "10YX-uBpIsD62rcUFOFtzVRcc0Bpz404V"
     workbook = client.open_by_key(sheet_id)
     sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
     return sheet
