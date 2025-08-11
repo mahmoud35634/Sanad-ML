@@ -3,33 +3,26 @@ import pickle
 import pandas as pd
 import requests
 import io
+from huggingface_hub import hf_hub_download
 
-# ==== Google Drive File IDs ====
-# Replace these with the file IDs from your Google Drive share links
-GDRIVE_FILES = {
-    "user_item.pkl": "1why2DyO-hSdRyCVOyDZjelsBCu8B7mP2",      # Example: after /d/ in the Google Drive link
-    "item_sim_df.pkl": "13TMwmZYNbmXD6AnviPpdWWpeP9IqDhHZ",
-    "df_items.pkl": "1XGBoEE6gQKL4NSvzD8yeeeb8_xr9Gw5f",
-    "df_customers.pkl": "1kQxVeNCbwD-5wDgdTywKw6eY7cZ_iKvP"
-}
+HF_REPO = "your-username/sanad-pkl"  # <-- change to your repo name
 
-@st.cache_resource(show_spinner=True)
-def download_from_gdrive(file_id: str):
-    """Download and load a pickle file from Google Drive."""
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    response = requests.get(url)
-    response.raise_for_status()
-    return pickle.load(io.BytesIO(response.content))
+FILES = [
+    "user_item.pkl",
+    "item_sim_df.pkl",
+    "df_items.pkl",
+    "df_customers.pkl"
+]
 
 @st.cache_resource(show_spinner=True)
 def load_data():
-    user_item = download_from_gdrive(GDRIVE_FILES["user_item.pkl"])
-    item_sim_df = download_from_gdrive(GDRIVE_FILES["item_sim_df.pkl"])
-    df_items = download_from_gdrive(GDRIVE_FILES["df_items.pkl"])
-    df_customers = download_from_gdrive(GDRIVE_FILES["df_customers.pkl"])
-    return user_item, item_sim_df, df_items, df_customers
+    data_objects = []
+    for file in FILES:
+        filepath = hf_hub_download(repo_id=HF_REPO, filename=file)
+        with open(filepath, "rb") as f:
+            data_objects.append(pickle.load(f))
+    return data_objects  # returns in same order as FILES
 
-# === Load all data once ===
 user_item, item_sim_df, df_items, df_customers = load_data()
 
 # === UI ===
