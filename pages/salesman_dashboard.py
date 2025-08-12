@@ -5,8 +5,66 @@ from sqlalchemy import create_engine
 import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-
+import pickle
 import json
+
+
+@st.cache_resource
+def load_content_model():
+    with open("content_model.pkl", "rb") as f:
+        model_data = pickle.load(f)
+    return model_data
+
+model_data = load_content_model()
+
+tfidf = model_data["tfidf"]
+cosine_sim = model_data["cosine_sim"]
+indices = model_data["indices"]
+items_df = model_data["items_df"]
+
+
+def recommend_similar_items(item_code, num_recommendations=5):
+    """Recommend items similar to the given item_code using cosine similarity."""
+    if item_code not in indices:
+        return pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION", "brand", "category"])
+    
+    idx = indices[item_code]
+    sim_scores = list(enumerate(cosine_sim[idx]))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    sim_scores = sim_scores[1:num_recommendations+1]  # skip self
+
+    item_indices = [i[0] for i in sim_scores]
+    recs = items_df.iloc[item_indices][["ITEM_CODE", "DESCRIPTION", "brand", "category"]].copy()
+    recs["similarity_score"] = [round(i[1], 3) for i in sim_scores]
+    return recs
+
+
+
+def recommend_for_customer_content(sanad_id, num_recommendations=5):
+    """
+    Recommend items for a customer based on content similarity 
+    from their past purchases.
+    """
+    # 1. Get customer's past purchases
+    df_b2b = get_customers_B2B(sanad_id)
+    if df_b2b.empty:
+        return pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION"])
+    
+    recs = pd.DataFrame()
+
+    # 2. For each purchased item, get similar items
+    for item_code in df_b2b["ITEM_CODE"].unique():
+        similar_items = recommend_similar_items(item_code, num_recommendations)
+        recs = pd.concat([recs, similar_items])
+
+    # 3. Remove items the customer already bought
+    recs = recs[~recs["ITEM_CODE"].isin(df_b2b["ITEM_CODE"].unique())]
+
+    # 4. Drop duplicates and limit
+    recs = recs.drop_duplicates(subset=["ITEM_CODE"]).head(num_recommendations)
+
+    return recs
+
 
 
 SALES_CREDENTIALS = st.secrets["SALES_CREDENTIALS"]
@@ -251,3 +309,16 @@ if st.sidebar.button("🚪 Logout"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
+
+
+
+top_n = st.slider("Number of Recommendations", 1, 20, 5)
+
+
+if st.button("📄 Show Content-Based Recommendations") and st.session_state.selected_sanad.strip() != "":
+    content_recs = recommend_for_customer_content(st.session_state.selected_sanad, num_recommendations=top_n)
+    if not content_recs.empty:
+        st.success(f"Top {top_n} Content-Based Recommendations for Customer ID: {st.session_state.selected_sanad}")
+        st.dataframe(content_recs.reset_index(drop=True))
+    else:
+        st.warning("No content-based recommendations found.")
