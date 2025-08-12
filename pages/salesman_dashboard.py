@@ -9,7 +9,6 @@ import pickle
 import json
 
 
-
 @st.cache_resource
 def load_content_model():
     with open("content_model.pkl", "rb") as f:
@@ -70,8 +69,6 @@ def recommend_for_customer_content(sanad_id, num_recommendations=5):
         diverse_list.extend(remaining.head(extra_needed).to_dict("records"))
 
     return pd.DataFrame(diverse_list)
-
-
 
 
 SALES_CREDENTIALS = st.secrets["SALES_CREDENTIALS"]
