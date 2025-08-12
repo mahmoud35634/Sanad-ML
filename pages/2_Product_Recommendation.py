@@ -2,34 +2,31 @@ import streamlit as st
 import joblib
 import os
 import requests
-import joblib
-import streamlit as st
-
 
 st.title("🛒 Product Recommender")
 
-
 BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
 BI_KEY = st.secrets["auth"]["BI_KEY"]
- 
+
 if BI_KEY not in st.session_state:
     st.session_state[BI_KEY] = False
 
-if not st.session_state[BI_KEY] :
+if not st.session_state[BI_KEY]:
     st.title("🔐 Secure Access to Sanad Chatbot")
     password = st.text_input("Enter password to access", type="password")
     if st.button("Login"):
         if password == BI_PASSWORD:
             st.session_state[BI_KEY] = True
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.error("Incorrect password ❌")
     st.stop()
 
-
 def download_file(url, local_path):
     if not os.path.exists(local_path):
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        dirname = os.path.dirname(local_path)
+        if dirname != '':
+            os.makedirs(dirname, exist_ok=True)
         st.info(f"Downloading {os.path.basename(local_path)} from GitHub Releases...")
         response = requests.get(url, stream=True)
         response.raise_for_status()
@@ -44,8 +41,9 @@ def load_models():
     sim_url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/item_similarity.pkl"
     name_map_url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/item_name_map.pkl"
 
-    sim_path = "item_similarity.pkl"
-    name_map_path = "item_name_map.pkl"
+    # Save files in a models/ folder to keep organized
+    sim_path = "models/item_similarity.pkl"
+    name_map_path = "models/item_name_map.pkl"
 
     download_file(sim_url, sim_path)
     download_file(name_map_url, name_map_path)
@@ -58,7 +56,7 @@ def load_models():
 def get_recommendations(item_id, sim_df, name_map, top_n=5):
     if item_id not in sim_df.columns:
         return []
-    similar_items = sim_df[item_id].sort_values(ascending=False).drop(item_id)
+    similar_items = sim_df[item_id].sort_values(ascending=False).drop(item_id, errors='ignore')
     return [(i, name_map.get(i, "Unknown Name")) for i in similar_items.head(top_n).index]
 
 # Load model and mappings
