@@ -27,14 +27,14 @@ def download_file(url, local_path):
         dirname = os.path.dirname(local_path)
         if dirname != '':
             os.makedirs(dirname, exist_ok=True)
-        st.info(f"Downloading {os.path.basename(local_path)} from GitHub Releases...")
+        # st.info(f"Downloading {os.path.basename(local_path)} from GitHub Releases...")
         response = requests.get(url, stream=True)
         response.raise_for_status()
         with open(local_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        st.success(f"{os.path.basename(local_path)} downloaded successfully.")
+        # st.success(f"{os.path.basename(local_path)} downloaded successfully.")
 
 @st.cache_resource
 def load_models():
