@@ -1,5 +1,10 @@
 import streamlit as st
 import joblib
+import os
+import requests
+import joblib
+import streamlit as st
+
 
 st.title("🛒 Product Recommender")
 
@@ -21,10 +26,33 @@ if not st.session_state[BI_KEY] :
             st.error("Incorrect password ❌")
     st.stop()
 
+
+def download_file(url, local_path):
+    if not os.path.exists(local_path):
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        st.info(f"Downloading {os.path.basename(local_path)} from GitHub Releases...")
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(local_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        st.success(f"{os.path.basename(local_path)} downloaded successfully.")
+
 @st.cache_resource
 def load_models():
-    sim_df = joblib.load("item_similarity.pkl")
-    name_map = joblib.load("item_name_map.pkl")
+    sim_url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/item_similarity.pkl"
+    name_map_url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/item_name_map.pkl"
+
+    sim_path = "item_similarity.pkl"
+    name_map_path = "item_name_map.pkl"
+
+    download_file(sim_url, sim_path)
+    download_file(name_map_url, name_map_path)
+
+    sim_df = joblib.load(sim_path)
+    name_map = joblib.load(name_map_path)
+
     return sim_df, name_map
 
 def get_recommendations(item_id, sim_df, name_map, top_n=5):
