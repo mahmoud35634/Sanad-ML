@@ -9,9 +9,10 @@ import pickle
 import json
 
 
+
 @st.cache_resource
 def load_content_model():
-    with open("content_model.pkl", "rb") as f:
+    with open("content_model_sub.pkl", "rb") as f:
         model_data = pickle.load(f)
     return model_data
 
@@ -39,31 +40,37 @@ def recommend_similar_items(item_code, num_recommendations=5):
     return recs
 
 
-
 def recommend_for_customer_content(sanad_id, num_recommendations=5):
-    """
-    Recommend items for a customer based on content similarity 
-    from their past purchases.
-    """
-    # 1. Get customer's past purchases
     df_b2b = get_customers_B2B(sanad_id)
     if df_b2b.empty:
-        return pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION"])
+        return pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION", "brand", "category"])
     
     recs = pd.DataFrame()
 
-    # 2. For each purchased item, get similar items
     for item_code in df_b2b["ITEM_CODE"].unique():
-        similar_items = recommend_similar_items(item_code, num_recommendations)
+        similar_items = recommend_similar_items(item_code, num_recommendations=10)  # more candidates
         recs = pd.concat([recs, similar_items])
 
-    # 3. Remove items the customer already bought
     recs = recs[~recs["ITEM_CODE"].isin(df_b2b["ITEM_CODE"].unique())]
+    recs = recs.drop_duplicates(subset=["ITEM_CODE"])
 
-    # 4. Drop duplicates and limit
-    recs = recs.drop_duplicates(subset=["ITEM_CODE"]).head(num_recommendations)
+    # Diversification
+    diverse_list = []
+    seen_categories = set()
+    for _, row in recs.iterrows():
+        if row["category"] not in seen_categories:
+            diverse_list.append(row.to_dict())  # ensure dict format
+            seen_categories.add(row["category"])
+        if len(diverse_list) >= num_recommendations:
+            break
+    
+    if len(diverse_list) < num_recommendations:
+        remaining = recs[~recs["ITEM_CODE"].isin([r["ITEM_CODE"] for r in diverse_list])]
+        extra_needed = num_recommendations - len(diverse_list)
+        diverse_list.extend(remaining.head(extra_needed).to_dict("records"))
 
-    return recs
+    return pd.DataFrame(diverse_list)
+
 
 
 
