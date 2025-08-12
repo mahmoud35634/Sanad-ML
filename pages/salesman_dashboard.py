@@ -7,21 +7,35 @@ import gspread
 from google.oauth2.service_account import Credentials
 import pickle
 import json
-
+import os
+import requests
 
 @st.cache_resource
-def load_content_model():
-    with open("models/content_model.pkl", "rb") as f:
+def download_model(url: str, local_path: str):
+    if not os.path.exists(local_path):
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(local_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+    with open(local_path, "rb") as f:
         model_data = pickle.load(f)
     return model_data
 
-model_data = load_content_model()
+# Replace with your actual release download URL:
+model_url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/content_model.pkl"
+local_model_path = "models/content_model.pkl"
+
+model_data = download_model(model_url, local_model_path)
 
 tfidf = model_data["tfidf"]
 cosine_sim = model_data["cosine_sim"]
 indices = model_data["indices"]
 items_df = model_data["items_df"]
 
+
+
+# https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/content_model.pkl
 
 def recommend_similar_items(item_code, num_recommendations=5):
     """Recommend items similar to the given item_code using cosine similarity."""
