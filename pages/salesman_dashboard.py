@@ -10,23 +10,34 @@ import json
 import os
 import requests
 
+import os
+import requests
+import pickle
+import streamlit as st
+
 @st.cache_resource
-def download_model(url: str, local_path: str):
+def load_content_model():
+    local_path = "models/content_model.pkl"
+    url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/content_model.pkl"
+
     if not os.path.exists(local_path):
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            with open(local_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        st.info("Downloading model file from GitHub Releases...")
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(local_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
                     f.write(chunk)
+        st.success("Model downloaded successfully.")
+
     with open(local_path, "rb") as f:
         model_data = pickle.load(f)
+
     return model_data
 
-# Replace with your actual release download URL:
-model_url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/content_model.pkl"
-local_model_path = "models/content_model.pkl"
 
-model_data = download_model(model_url, local_model_path)
+model_data = load_content_model()
 
 tfidf = model_data["tfidf"]
 cosine_sim = model_data["cosine_sim"]
