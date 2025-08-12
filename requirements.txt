@@ -6,4 +6,5 @@ python-dotenv
 google-generativeai
 joblib
 gspread
+scikit-learn==1.2.2
 huggingface_hub
