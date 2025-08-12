@@ -11,7 +11,7 @@ import json
 
 @st.cache_resource
 def load_content_model():
-    with open("content_model.pkl", "rb") as f:
+    with open("models/content_model.pkl", "rb") as f:
         model_data = pickle.load(f)
     return model_data
 
