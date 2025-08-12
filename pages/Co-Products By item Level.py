@@ -52,6 +52,9 @@ def get_brand_list():
         result = pd.read_sql(query, conn)
         return result["Brand"].dropna().unique().tolist()
 
+
+brand_list = get_brand_list()
+
 @st.cache_data
 def get_govermant_list():
     with engine.connect() as conn:
@@ -59,15 +62,22 @@ def get_govermant_list():
         result = pd.read_sql(query, conn)
         return result["GOVERNER_NAME"].dropna().unique().tolist()
 
-brand_list = get_brand_list()
 governer_list = get_govermant_list()
 
+@st.cache_data
+def get_area_list(selected_governerment):
+    with engine.connect() as conn:
+        query = f"""SELECT DISTINCT AREA_NAME FROM MP_Customers WHERE GOVERNER_NAME = N'{selected_governerment}' """
+        result = pd.read_sql(query,conn)
+        return result['AREA_NAME'].dropna().unique().tolist()
 
 
 
 # Step 2: UI components
 selected_brand = st.selectbox("🔍Choose a Brand", options=brand_list)
 selected_governerment = st.selectbox("🏙️ (Optional) Choose a Governorate", options=[""] + governer_list)
+area_list_df = get_area_list(selected_governerment) if selected_governerment else pd.DataFrame(columns=['AREA_NAME'])
+selected_area = st.selectbox("🏙️ (Optional) Choose an Area", options=[""] + area_list_df)
 
 # Step 3: Date range input (up to today)
 date_range = st.date_input(
@@ -76,6 +86,7 @@ date_range = st.date_input(
     min_value=datetime.date(2023, 1, 1),
     max_value=datetime.date.today()
 )
+
 
 
 
@@ -91,7 +102,6 @@ def get_items_for_brand(brand):
 
 # Load items for selected brand
 items_list_df = get_items_for_brand(selected_brand) if selected_brand else pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION"])
-
 
 
 def get_category_list():
@@ -170,6 +180,7 @@ if st.session_state.show_results:
     gov_condition = f" AND c.GOVERNER_NAME = N'{selected_governerment}'" if selected_governerment else ""
     brand_item_filter = f" AND i.ITEM_CODE = '{st.session_state.selected_code}'" if st.session_state.selected_code else ""
     category_item_filter = f" AND Right(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) = N'{selected_category}'" if selected_category else ""
+    area_item_filter = f" AND c.AREA_NAME = N'{selected_area}'" if selected_area else ""
 
     # Save queries in session state
     st.session_state.brand_orders_query = f"""
@@ -179,7 +190,7 @@ if st.session_state.show_results:
         LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
         WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
           AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-          {gov_condition} {brand_item_filter}
+          {gov_condition} {brand_item_filter} {area_item_filter}
     """
 
     st.session_state.main_query = f"""
@@ -190,7 +201,7 @@ if st.session_state.show_results:
             LEFT JOIN MP_Customers c ON s.CustomerId = c.SITE_NUMBER
             WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) = '{selected_brand}'
             AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-            {gov_condition} {brand_item_filter}
+            {gov_condition} {brand_item_filter} {area_item_filter}
         )
         SELECT TOP {int(top_rows)}
             i.DESCRIPTION AS Item_Description,
@@ -204,7 +215,7 @@ if st.session_state.show_results:
         INNER JOIN BrandOrders bo ON s.Order_Number = bo.Order_Number
         WHERE RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) <> '{selected_brand}'
         AND s.Date BETWEEN '{start_date}' AND '{end_date}' 
-        {gov_condition} {category_item_filter}
+        {gov_condition} {category_item_filter} {area_item_filter}
         GROUP BY i.DESCRIPTION, i.MASTER_BRAND
         ORDER BY Distinct_Orders DESC
     """
