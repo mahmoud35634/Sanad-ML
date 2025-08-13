@@ -12,7 +12,6 @@ if BI_KEY not in st.session_state:
     st.session_state[BI_KEY] = False
 
 if not st.session_state[BI_KEY]:
-    st.title("🔐 Secure Access to Sanad Chatbot")
     password = st.text_input("Enter password to access", type="password")
     if st.button("Login"):
         if password == BI_PASSWORD:
