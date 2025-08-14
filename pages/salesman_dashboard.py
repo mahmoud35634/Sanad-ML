@@ -291,7 +291,7 @@ def get_customers_B2B(sanad_id):
         query = f"""
         SELECT 
             c.CUSTOMER_B2B_ID as sanad_id,
-            CAST(s.date AS date) AS Date,
+            FORMAT(s.Date,'MMM-yyyy') AS Date,
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
             i.ITEM_CODE,
@@ -309,7 +309,7 @@ def get_customers_B2B(sanad_id):
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
             c.CUSTOMER_B2B_ID,
-            CAST(s.date AS date),
+            FORMAT(s.Date,'MMM-yyyy'),
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
