@@ -14,7 +14,7 @@ from time import time
 # Load API key from .env
 # API key should be set in a .env file
 # load_dotenv()
-genai.configure(api_key=st.secrets["API"])
+genai.configure(api_key=st.secrets["API"]["GOOGLE_API_KEY"])
 # Load from secrets.toml
 
 Credentials = st.secrets["auth"]
