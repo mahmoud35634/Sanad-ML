@@ -13,8 +13,8 @@ from time import time
 
 # Load API key from .env
 # API key should be set in a .env file
-load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# load_dotenv()
+genai.configure(api_key=st.secrets["API"])
 # Load from secrets.toml
 
 Credentials = st.secrets["auth"]
@@ -22,6 +22,7 @@ BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
 BI_KEY = st.secrets["auth"]["BI_KEY"]
 TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD"]
 TRADE_KEY = st.secrets["auth"]["TRADE_KEY"]
+# gemini_API = 
 
 # Initialize session states
 if BI_KEY not in st.session_state:
