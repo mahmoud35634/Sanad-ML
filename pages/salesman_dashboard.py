@@ -314,7 +314,7 @@ def get_customers_B2B(sanad_id):
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
             i.DESCRIPTION
-        ORDER BY Sales DESC, TotalQty DESC
+        ORDER BY Date ASC
         """
         df=pd.read_sql(query, conn)
         if df.empty:
