@@ -63,26 +63,7 @@ col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.image("logoo.png", width=200)
 
-# =========================
-# DB Connection
-# =========================
-@st.cache_resource
-def connect_db():
-    try:
-        return pyodbc.connect(
-            "DRIVER={ODBC Driver 17 for SQL Server};"
-            "SERVER=web.speed.live;"
-            "DATABASE=Sanad1;"
-            "Trusted_Connection=yes;"
-            "MARS_Connection=yes;"
-        )
-    except Exception:
-        st.error("❌ Could not connect to database.")
-        return None
 
-conn = connect_db()
-if conn is None:
-    st.stop()
 
 
 
