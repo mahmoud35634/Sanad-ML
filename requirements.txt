@@ -8,3 +8,4 @@ joblib
 gspread
 scikit-learn
 huggingface_hub
+xlsxwriter
