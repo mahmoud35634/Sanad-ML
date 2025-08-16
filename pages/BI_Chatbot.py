@@ -176,9 +176,9 @@ Rules:
 
 Do not use month column; extract month from Date if needed.
 
-Always Format sales values using  FORMAT(s.Netsalesvalue, 'N0')
+Always Format sales values using  Round(s.Netsalesvalue,0)
 
-if i asked about averge for brand over months so the avgerage i need to be calculated Sum(Netsalesvalue/no of months)
+if i asked about average for brand over months so the avgerage i need to be calculated Sum(Netsalesvalue/no of months)
 
 MP_Customers (Customer Master)
 
