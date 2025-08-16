@@ -548,9 +548,9 @@ with st.sidebar:
         st.session_state.chat_history = []
         st.rerun()
 
-    debug_mode = False
-    if st.session_state[BI_KEY]:
-        debug_mode = st.toggle("🔎 BI Debug Mode (show raw LLM output)", value=False, help="BI only")
+    # debug_mode = False
+    # if st.session_state[BI_KEY]:
+    #     debug_mode = st.toggle("🔎 BI Debug Mode (show raw LLM output)", value=False, help="BI only")
 
 # =========================
 # Replay History
@@ -651,7 +651,7 @@ if user_input:
                     "content": reply_text,
                     "sql": sql_query if st.session_state[BI_KEY] else None,
                     "df": df,
-                    "raw": raw_output if (st.session_state[BI_KEY] and debug_mode) else None
+                    # "raw": raw_output if (st.session_state[BI_KEY] and debug_mode) else None
                 })
 
             except Exception as e:
