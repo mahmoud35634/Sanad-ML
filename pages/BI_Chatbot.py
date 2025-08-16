@@ -578,9 +578,9 @@ for msg in st.session_state.chat_history:
 
             st.dataframe(msg["df"])
 
-        if st.session_state[BI_KEY] and debug_mode and msg.get("raw"):
-            with st.expander("LLM Raw Output (Debug)"):
-                st.text(msg["raw"])
+        # if st.session_state[BI_KEY] and debug_mode and msg.get("raw"):
+        #     with st.expander("LLM Raw Output (Debug)"):
+        #         st.text(msg["raw"])
 
 # =========================
 # Chat Input & Handling
