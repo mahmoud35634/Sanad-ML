@@ -389,8 +389,7 @@ if st.sidebar.button("🚪 Logout"):
         del st.session_state[key]
     st.rerun()
 
-st.header("There is the Recommendaation Section")
-top_n = st.slider("Number of Recommendations", 1, 20, 5)
+st.header("There is the Recommendation Section")
 top_n = st.slider("Number of Recommendations", 1, 20, 5)
 
 
