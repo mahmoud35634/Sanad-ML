@@ -58,7 +58,7 @@ def recommend_similar_items(item_code, num_recommendations=5):
 
 
 def recommend_for_customer_content(sanad_id, num_recommendations=5):
-    df_b2b = get_customers_B2B(sanad_id)
+    df_b2b,summary_df = get_customers_B2B(sanad_id)
     if df_b2b.empty:
         return pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION", "brand", "category"])
     
