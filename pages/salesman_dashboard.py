@@ -122,18 +122,6 @@ def connect_to_sheet():
     sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
     return sheet
 
-
-@st.cache_resource
-def connect_to_sheet():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("secrets/credentials (2).json", scopes=scopes)
-    client = gspread.authorize(creds)
-    sheet_id = "13YWnjeLIKjno8-klspJoBtgQ9uAOdSFda8nQx0rlINs"
-    workbook = client.open_by_key(sheet_id)
-    sheet = workbook.get_worksheet(2)  
-    return sheet
-
-
 # Sidebar login
 st.sidebar.title("🔐 Salesman Login")
 
