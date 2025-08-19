@@ -10,11 +10,6 @@ import json
 import os
 import requests
 
-import os
-import requests
-import pickle
-import streamlit as st
-
 @st.cache_resource
 def load_content_model():
     local_path = "models/content_model.pkl"
@@ -112,6 +107,20 @@ connection_string = (
 )
 params = urllib.parse.quote_plus(connection_string)
 engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+
+@st.cache_resource
+def connect_to_sheet():
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes
+    )
+    client = gspread.authorize(creds)
+    sheet_id = "13YWnjeLIKjno8-klspJoBtgQ9uAOdSFda8nQx0rlINs"
+    workbook = client.open_by_key(sheet_id)
+    sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
+    return sheet
 
 
 @st.cache_resource
@@ -394,6 +403,7 @@ if st.sidebar.button("🚪 Logout"):
 
 st.header("There is the Recommendaation Section")
 top_n = st.slider("Number of Recommendations", 1, 20, 5)
+top_n = st.slider("Number of Recommendations", 1, 20, 5)
 
 
 if st.button("📄 Show Content-Based Recommendations") and st.session_state.selected_sanad.strip() != "":
@@ -403,3 +413,6 @@ if st.button("📄 Show Content-Based Recommendations") and st.session_state.sel
         st.dataframe(content_recs.reset_index(drop=True))
     else:
         st.warning("No content-based recommendations found.")
+
+
+
