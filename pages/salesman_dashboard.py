@@ -377,8 +377,8 @@ if st.session_state.selected_sanad:
         st.dataframe(df_b2b, use_container_width=True)
         st.subheader("There is summary details")
         st.dataframe(df_summary, use_container_width=True)
-else:
-    st.info("Please select a SanadID to view B2B details.")
+    else:
+        st.info("Please select a SanadID to view B2B details.")
 
     
 
