@@ -117,81 +117,82 @@ engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 @st.cache_resource
 def connect_to_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=scopes
-    )
+    creds = Credentials.from_service_account_file("secrets/credentials (2).json", scopes=scopes)
     client = gspread.authorize(creds)
     sheet_id = "13YWnjeLIKjno8-klspJoBtgQ9uAOdSFda8nQx0rlINs"
     workbook = client.open_by_key(sheet_id)
-    sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
+    sheet = workbook.get_worksheet(2)  
     return sheet
-
-
 
 
 # Sidebar login
 st.sidebar.title("🔐 Salesman Login")
 
-
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.salesman = None
 
+    
 if not st.session_state.logged_in:
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
+    
     if st.sidebar.button("Login"):
         user_data = SALES_CREDENTIALS.get(username)
         if user_data and user_data["password"] == password:
             st.session_state.logged_in = True
             st.session_state.salesman = user_data["salesman"]
             st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
-            st.rerun()
+            st.rerun()  # <--- This forces the app to jump directly into the main page
         else:
             st.sidebar.error("Invalid username or password")
-    st.stop()
-
+    
+    st.stop()  # Prevents loading the main page until logged in
 # Use this in your app instead of manual salesman selection:
 selected_salesman = st.session_state.salesman
 
-st.title("🛍️ Past History Purchased Orders")
+st.title("🛍️ Past 3 Months History Purchased Orders")
 st.write(f"This view is restricted to **{selected_salesman}** only.")
 #show the number of customers
-
-# Step 2: Load customer info from database
 @st.cache_data
 def get_customers_from_salesman(selected_salesman):
     sheet = connect_to_sheet()
     data = sheet.get_all_values()
-    header = data[0]
+    header = [h.strip() for h in data[0]]  # strip all header spaces
     rows = data[1:]
-    sr_name_col = "SR Name "     # Note the trailing space!
+
+    sr_name_col = "SR Name"
     sanad_id_col = "SanadID"
     phone_col = "Phone_Number"
-    Customer_Name_col ="Customer_Name"
-    Contact_name_col = "Contact_NAME"
+    customer_name_col = "Customer_Name"
+    contact_name_col = "Contact_NAME"
+    governer_name_col = "Area"
+    city_name_col = "City"
 
-    # Check if all columns exist
-    if sr_name_col in header and sanad_id_col in header and phone_col in header and Customer_Name_col in header and Contact_name_col in header:
-        sr_idx = header.index(sr_name_col)
-        sanad_idx = header.index(sanad_id_col)
-        phone_idx = header.index(phone_col)
-        customer_name_idx = header.index(Customer_Name_col)
-        contact_name_idx = header.index(Contact_name_col)
-
-        # Filter and return a list of dicts with SanadID and Phone Number
-        filtered = [
-            {"SanadID": row[sanad_idx], "Phone_Number": row[phone_idx]," Customer_Name": row[customer_name_idx], "Contact_NAME": row[contact_name_idx]}
-            for row in rows
-            if row[sr_idx].strip() == selected_salesman
-        ]
-        return filtered
-    else:
+    # Ensure required columns exist
+    required_cols = [sr_name_col, sanad_id_col, phone_col, customer_name_col,
+                     contact_name_col, governer_name_col, city_name_col]
+    if not all(col in header for col in required_cols):
         st.error("One or more required columns not found.")
         return []
 
-customer_data = get_customers_from_salesman(selected_salesman)
+    col_idx = {col: header.index(col) for col in required_cols}
+
+    filtered = [
+        {
+            "SanadID": row[col_idx[sanad_id_col]].strip(),
+            "Phone_Number": row[col_idx[phone_col]].strip(),
+            "Customer_Name": row[col_idx[customer_name_col]].strip(),
+            "Contact_NAME": row[col_idx[contact_name_col]].strip(),
+            "Area": row[col_idx[governer_name_col]].strip(),
+            "City": row[col_idx[city_name_col]].strip(),
+        }
+        for row in rows
+        if row[col_idx[sr_name_col]].strip() == selected_salesman
+    ]
+    return filtered
+
+
 
 # --- Fetch customer data ---
 customer_data = get_customers_from_salesman(selected_salesman)
@@ -202,7 +203,7 @@ st.sidebar.write(f"Total Customers: {len(get_customers_from_salesman(selected_sa
 customer_df.columns = customer_df.columns.str.strip()
 
 # --- Initialize session state ---
-for key in ["selected_sanad", "selected_phone", "selected_customer_name", "selected_contact_name"]:
+for key in ["selected_sanad", "selected_phone", "selected_customer_name", "selected_contact_name","selected_Area","selected_City"]:
     if key not in st.session_state:
         st.session_state[key] = ""
 
@@ -215,6 +216,8 @@ def update_from_sanad():
         st.session_state.selected_phone = row["Phone_Number"]
         st.session_state.selected_customer_name = row["Customer_Name"]
         st.session_state.selected_contact_name = row["Contact_NAME"]
+        st.session_state.selected_Area = row["Area"]
+        st.session_state.selected_City = row["City"]
 
 def update_from_phone():
     phone = st.session_state.selected_phone
@@ -224,6 +227,8 @@ def update_from_phone():
         st.session_state.selected_sanad = row["SanadID"]
         st.session_state.selected_customer_name = row["Customer_Name"]
         st.session_state.selected_contact_name = row["Contact_NAME"]
+        st.session_state.selected_Area = row["Area"]
+        st.session_state.selected_City = row["City"]
 
 def update_from_contact_name():
     contact = st.session_state.selected_contact_name
@@ -233,6 +238,10 @@ def update_from_contact_name():
         st.session_state.selected_sanad = row["SanadID"]
         st.session_state.selected_phone = row["Phone_Number"]
         st.session_state.selected_customer_name = row["Customer_Name"]
+        st.session_state.selected_Area = row["Area"]
+        st.session_state.selected_City = row["City"]
+
+
 
 # --- UI: Two-way selection ---
 if not customer_df.empty:
@@ -267,13 +276,19 @@ if not customer_df.empty:
         st.session_state.selected_sanad,
         st.session_state.selected_phone,
         st.session_state.selected_customer_name,
-        st.session_state.selected_contact_name
+        st.session_state.selected_contact_name,
+        st.session_state.selected_Area,
+        st.session_state.selected_City
+        
     ]):
         st.success(
             f"✅ Selected: **SanadID = {st.session_state.selected_sanad}**, "
             f"**Phone = {st.session_state.selected_phone}**, "
             f"**Customer = {st.session_state.selected_customer_name}**, "
-            f"**Contact = {st.session_state.selected_contact_name}**" 
+            f"**Contact = {st.session_state.selected_contact_name}**," 
+            f"**Contact = {st.session_state.selected_Area}**," 
+            f"**Contact = {st.session_state.selected_City}**," 
+
 
         )
 else:
@@ -282,21 +297,21 @@ else:
 
 # Step 1: Load customer info from database
 @st.cache_data
+
 def get_customers_B2B(sanad_id):
     if not sanad_id:
         st.warning("No SanadID selected. Please select a SanadID to view B2B details.")
+        return pd.DataFrame()
 
-        return pd.DataFrame()  # No selection yet
     with engine.connect() as conn:
         query = f"""
         SELECT 
-            c.CUSTOMER_B2B_ID as sanad_id,
-            FORMAT(s.Date,'MMM-yyyy') AS Date,
+            FORMAT(S.Date , 'MMM-yyyy') as Date,
+             i.ITEM_CODE,
+            i.DESCRIPTION,
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
-            i.ITEM_CODE,
-            i.DESCRIPTION,
-            SUM(s.Netsalesvalue) AS Sales,
+            ROUND(sum(s.Netsalesvalue),0) as sales,
             SUM(s.SalesQtyInCases) AS TotalQty
         FROM MP_Sales s
         LEFT JOIN MP_Customers c
@@ -304,31 +319,71 @@ def get_customers_B2B(sanad_id):
         LEFT JOIN MP_Items i
             ON s.ItemId = i.ITEM_CODE
         WHERE 
-            s.Date >= DATEADD( MM,DATEDIFF(MM,0,GETDATE())-3,0) and s.Date < DATEADD(MM,DATEDIFF(MM,  0,GETDATE()),0)
+    s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+    AND s.Date < DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
-            c.CUSTOMER_B2B_ID,
-            FORMAT(s.Date,'MMM-yyyy'),
+             FORMAT(S.Date , 'MMM-yyyy') ,
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
             i.DESCRIPTION
-        ORDER BY Date ASC
+        ORDER BY 
+        sales DESC
         """
-        df=pd.read_sql(query, conn)
-        if df.empty:
-            st.warning("No data for this customer in the last 3 months.")
-        return df
+
+
+        summary_query  = f"""
+
+SELECT 
+    MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
+    MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
+    FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+    SUM(s.SalesQtyInCases) AS TotalQty,
+    COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseTimes,
+    CASE 
+        WHEN COUNT(DISTINCT CAST(s.Date AS DATE)) > 1 
+        THEN DATEDIFF(
+                DAY, 
+                MIN(CAST(s.Date AS DATE)), 
+                MAX(CAST(s.Date AS DATE))
+             ) 
+        ELSE NULL 
+    END AS AvgDaysBetweenPurchases
+FROM MP_Sales s
+LEFT JOIN MP_Customers c
+    ON s.CustomerID = c.SITE_NUMBER
+LEFT JOIN MP_Items i
+    ON s.ItemId = i.ITEM_CODE
+WHERE 
+    s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+    AND s.Date < DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+    AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+    AND i.ITEM_CODE NOT LIKE '%XE%'
+
+        """
+
+        df = pd.read_sql(query, conn)
+        summary_df = pd.read_sql(summary_query, conn)
+
+    if df.empty:
+        st.warning("No data for this customer in the last 3 months.")
+    return df , summary_df
+
 
 st.sidebar.subheader("B2B Customer Details")
 
 if st.session_state.selected_sanad:
-    df_b2b = get_customers_B2B(st.session_state.selected_sanad)
+    df_b2b,df_summary = get_customers_B2B(st.session_state.selected_sanad)
     if not df_b2b.empty:
         st.dataframe(df_b2b, use_container_width=True)
+        st.subheader("There is summary details")
+        st.dataframe(df_summary, use_container_width=True)
 else:
     st.info("Please select a SanadID to view B2B details.")
+
+    
 
 
 # --- Sidebar logout ---
@@ -337,8 +392,7 @@ if st.sidebar.button("🚪 Logout"):
         del st.session_state[key]
     st.rerun()
 
-
-
+st.header("There is the Recommendaation Section")
 top_n = st.slider("Number of Recommendations", 1, 20, 5)
 
 
