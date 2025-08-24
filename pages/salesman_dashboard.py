@@ -406,7 +406,7 @@ def get_three_months_ago_data(sanad_id):
             AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
-        group by FORMAT(DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy')
+        group by Month
         """)
 
         df = pd.read_sql(query, conn)
