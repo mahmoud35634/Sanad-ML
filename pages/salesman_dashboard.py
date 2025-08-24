@@ -306,7 +306,7 @@ def get_month_name(offset):
     """Get month name based on offset"""
     current_date = datetime.datetime.now()
     target_date = current_date + datetime.timedelta(days=30 * offset)
-    return target_date.strftime("%B %Y")s
+    return target_date.strftime("%B %Y")
 
 
 # Sidebar login
