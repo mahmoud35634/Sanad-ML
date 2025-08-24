@@ -621,25 +621,22 @@ if st.sidebar.button("🚪 Logout"):
 st.header("🎯 Recommendation Section")
 
 if st.session_state.selected_sanad:
-    col1, col2 = st.columns([1, 1])
     
-    with col1:
-        top_n = st.slider("Number of Recommendations", 1, 20, 5)
-    
-    with col2:
-        if st.button("📄 Show Content-Based Recommendations", type="primary"):
-            with st.spinner("Generating recommendations..."):
-                try:
-                    content_recs = recommend_for_customer_content(
-                        st.session_state.selected_sanad, 
-                        num_recommendations=top_n
-                    )
-                    if not content_recs.empty:
-                        st.success(f"Top {top_n} Content-Based Recommendations for Customer ID: {st.session_state.selected_sanad}")
-                        st.dataframe(content_recs.reset_index(drop=True), use_container_width=True)
-                    else:
-                        st.warning("No content-based recommendations found.")
-                except Exception as e:
-                    st.error(f"Error generating recommendations: {str(e)}")
+    top_n = st.slider("Number of Recommendations", 1, 20, 5)
+
+    if st.button("📄 Show Content-Based Recommendations", type="primary"):
+        with st.spinner("Generating recommendations..."):
+            try:
+                content_recs = recommend_for_customer_content(
+                    st.session_state.selected_sanad, 
+                    num_recommendations=top_n
+                )
+                if not content_recs.empty:
+                    st.success(f"Top {top_n} Content-Based Recommendations for Customer ID: {st.session_state.selected_sanad}")
+                    st.dataframe(content_recs.reset_index(drop=True), use_container_width=True)
+                else:
+                    st.warning("No content-based recommendations found.")
+            except Exception as e:
+                st.error(f"Error generating recommendations: {str(e)}")
 else:
     st.info("Please select a customer to view recommendations.")
