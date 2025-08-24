@@ -34,7 +34,7 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # =========================
 BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
 BI_KEY = st.secrets["auth"]["BI_KEY"]
-TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD "]
+TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD"]
 TRADE_KEY =st.secrets["auth"]["TRADE_KEY"]
 
 
