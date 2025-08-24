@@ -354,11 +354,11 @@ SELECT
     COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseTimes,
     CASE 
         WHEN COUNT(DISTINCT CAST(s.Date AS DATE)) > 1 
-        THEN DATEDIFF(
+        THEN (DATEDIFF(
                 DAY, 
                 MIN(CAST(s.Date AS DATE)), 
                 MAX(CAST(s.Date AS DATE))
-             ) 
+             ) / COUNT(DISTINCT CAST(s.Date AS DATE)))
         ELSE NULL 
     END AS AvgDaysBetweenPurchases
 FROM MP_Sales s
