@@ -177,15 +177,14 @@ def get_customers_from_salesman(selected_salesman):
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_customers_B2B(sanad_id):
-    """Get B2B customer data for last 3 months with caching"""
+    """Get B2B customer data for last 3 months with caching - Modified to show totals without monthly grouping"""
     if not sanad_id:
         return pd.DataFrame(), pd.DataFrame()
 
     with engine.connect() as conn:
-        # Main query for last 3 months
+        # Modified main query - removed FORMAT(S.Date, 'MMM-yyyy') from SELECT and GROUP BY
         query = text(f"""
         SELECT 
-            FORMAT(S.Date, 'MMM-yyyy') as Date,
             i.ITEM_CODE,
             i.DESCRIPTION,
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
@@ -201,7 +200,6 @@ def get_customers_B2B(sanad_id):
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
-            FORMAT(S.Date, 'MMM-yyyy'),
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
@@ -209,7 +207,7 @@ def get_customers_B2B(sanad_id):
         ORDER BY sales DESC
         """)
 
-        # Summary query
+        # Summary query remains the same
         summary_query = text(f"""
         SELECT 
             MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
@@ -243,13 +241,13 @@ def get_customers_B2B(sanad_id):
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def get_monthly_data(sanad_id, month_offset):
-    """Get data for a specific month (0=current, -1=last month, -2=2 months ago)"""
+def get_current_month_data(sanad_id):
+    """Get current month data"""
     if not sanad_id:
         return pd.DataFrame(), pd.DataFrame()
 
     with engine.connect() as conn:
-        # Monthly data query
+        # Current month query
         query = text(f"""
         SELECT 
             FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
@@ -263,8 +261,8 @@ def get_monthly_data(sanad_id, month_offset):
         LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
         LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
         WHERE 
-            s.Date >= DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND s.Date < DATEADD(MONTH, :month_offset_plus1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            s.Date >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+            AND s.Date < DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
@@ -276,10 +274,10 @@ def get_monthly_data(sanad_id, month_offset):
         ORDER BY S.Date DESC, sales DESC
         """)
 
-        # Monthly summary
+        # Current month summary
         summary_query = text(f"""
         SELECT 
-            FORMAT(DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
+            FORMAT(DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1), 'MMM-yyyy') AS Month,
             FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
@@ -288,13 +286,127 @@ def get_monthly_data(sanad_id, month_offset):
         LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
         LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
         WHERE 
-            s.Date >= DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND s.Date < DATEADD(MONTH, :month_offset_plus1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            s.Date >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+            AND s.Date < DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         """)
 
- 
+        df = pd.read_sql(query, conn)
+        summary_df = pd.read_sql(summary_query, conn)
+
+    return df, summary_df
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_last_month_data(sanad_id):
+    """Get last month data"""
+    if not sanad_id:
+        return pd.DataFrame(), pd.DataFrame()
+
+    with engine.connect() as conn:
+        # Last month query
+        query = text(f"""
+        SELECT 
+            FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
+            i.ITEM_CODE,
+            i.DESCRIPTION,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
+            ROUND(SUM(s.Netsalesvalue), 0) as sales,
+            SUM(s.SalesQtyInCases) AS TotalQty
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        GROUP BY 
+            FORMAT(S.Date, 'dd-MMM-yyyy'),
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
+            i.ITEM_CODE,
+            i.DESCRIPTION
+        ORDER BY S.Date DESC, sales DESC
+        """)
+
+        # Last month summary
+        summary_query = text(f"""
+        SELECT 
+            FORMAT(DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
+            FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+            ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
+            COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
+            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        """)
+
+        df = pd.read_sql(query, conn)
+        summary_df = pd.read_sql(summary_query, conn)
+
+    return df, summary_df
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_two_months_ago_data(sanad_id):
+    """Get two months ago data"""
+    if not sanad_id:
+        return pd.DataFrame(), pd.DataFrame()
+
+    with engine.connect() as conn:
+        # Two months ago query
+        query = text(f"""
+        SELECT 
+            FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
+            i.ITEM_CODE,
+            i.DESCRIPTION,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
+            ROUND(SUM(s.Netsalesvalue), 0) as sales,
+            SUM(s.SalesQtyInCases) AS TotalQty
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -2, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        GROUP BY 
+            FORMAT(S.Date, 'dd-MMM-yyyy'),
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
+            i.ITEM_CODE,
+            i.DESCRIPTION
+        ORDER BY S.Date DESC, sales DESC
+        """)
+
+        # Two months ago summary
+        summary_query = text(f"""
+        SELECT 
+            FORMAT(DATEADD(MONTH, -2, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
+            FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+            ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
+            COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
+            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -2, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        """)
 
         df = pd.read_sql(query, conn)
         summary_df = pd.read_sql(summary_query, conn)
@@ -438,7 +550,7 @@ if st.session_state.selected_sanad:
     main_col, detail_col = st.columns([2, 1])
     
     with main_col:
-        st.subheader("📊 Last 3 Months Summary")
+        st.subheader("📊 Last 3 Months Summary (Total by Items)")
         with st.spinner("Loading customer data..."):
             df_b2b, df_summary = get_customers_B2B(st.session_state.selected_sanad)
             
@@ -452,37 +564,45 @@ if st.session_state.selected_sanad:
     with detail_col:
         st.subheader("🗓️ Monthly Details")
         
-        # Month selection buttons
-        months = [
-            ("Current Month", 0),
-            ("Last Month", -1),
-            ("2 Months Ago", -2)
-        ]
-        
-        selected_month = st.radio(
-            "Select Month:",
-            options=[m[0] for m in months],
-            key="month_selection"
-        )
-        
-        # Get month offset
-        month_offset = next(m[1] for m in months if m[0] == selected_month)
-        
-        if st.button(f"📅 Load {selected_month}", key="load_monthly"):
-            with st.spinner(f"Loading {selected_month} data..."):
-                monthly_df, monthly_summary = get_monthly_data(
-                    st.session_state.selected_sanad, 
-                    month_offset
-                )
+        # Three independent buttons for monthly data
+        if st.button("📅 Current Month", key="current_month_btn"):
+            with st.spinner("Loading current month data..."):
+                monthly_df, monthly_summary = get_current_month_data(st.session_state.selected_sanad)
                 
             if not monthly_df.empty:
-                st.subheader(f"📋 {selected_month} Data")
+                st.subheader("📋 Current Month Data")
                 st.dataframe(monthly_df, use_container_width=True, height=300)
                 
-                st.subheader(f"📊 {selected_month} Summary")
+                st.subheader("📊 Current Month Summary")
                 st.dataframe(monthly_summary, use_container_width=True)
             else:
-                st.warning(f"No data found for {selected_month.lower()}.")
+                st.warning("No data found for current month.")
+        
+        if st.button("📅 Last Month", key="last_month_btn"):
+            with st.spinner("Loading last month data..."):
+                monthly_df, monthly_summary = get_last_month_data(st.session_state.selected_sanad)
+                
+            if not monthly_df.empty:
+                st.subheader("📋 Last Month Data")
+                st.dataframe(monthly_df, use_container_width=True, height=300)
+                
+                st.subheader("📊 Last Month Summary")
+                st.dataframe(monthly_summary, use_container_width=True)
+            else:
+                st.warning("No data found for last month.")
+        
+        if st.button("📅 2 Months Ago", key="two_months_ago_btn"):
+            with st.spinner("Loading 2 months ago data..."):
+                monthly_df, monthly_summary = get_two_months_ago_data(st.session_state.selected_sanad)
+                
+            if not monthly_df.empty:
+                st.subheader("📋 2 Months Ago Data")
+                st.dataframe(monthly_df, use_container_width=True, height=300)
+                
+                st.subheader("📊 2 Months Ago Summary")
+                st.dataframe(monthly_summary, use_container_width=True)
+            else:
+                st.warning("No data found for 2 months ago.")
 
 else:
     st.info("Please select a customer to view sales data.")
