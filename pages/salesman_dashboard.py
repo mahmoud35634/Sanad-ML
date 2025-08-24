@@ -387,7 +387,7 @@ def get_two_months_ago_data(sanad_id):
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
             i.DESCRIPTION
-        ORDER BY S.Date DESC, sales DESC
+        ORDER BY Date DESC, sales DESC
         """)
 
         # Two months ago summary
