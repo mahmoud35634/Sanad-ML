@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import urllib
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import datetime
 import gspread
 from google.oauth2.service_account import Credentials
@@ -9,14 +9,16 @@ import pickle
 import json
 import os
 import requests
-
-
+from functools import lru_cache
 
 
 # Function to load and inject CSS
 def load_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    try:
+        with open(file_name) as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except FileNotFoundError:
+        pass  # Ignore if CSS file doesn't exist
 
 # Call it at the start of your app
 load_css("style.css")
@@ -24,17 +26,19 @@ load_css("style.css")
 
 @st.cache_resource
 def load_content_model():
+    """Load content model with caching and auto-download"""
     local_path = "models/content_model.pkl"
     url = "https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/content_model.pkl"
 
     if not os.path.exists(local_path):
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        with open(local_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
+        with st.spinner("Downloading content model..."):
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            with open(local_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
 
     with open(local_path, "rb") as f:
         model_data = pickle.load(f)
@@ -42,18 +46,47 @@ def load_content_model():
     return model_data
 
 
-model_data = load_content_model()
+@st.cache_resource
+def get_database_engine():
+    """Create database engine with caching"""
+    db_config = st.secrets["database"]
+    connection_string = (
+        f"DRIVER={{{db_config['driver']}}};"
+        f"SERVER={db_config['server']};"
+        f"DATABASE={db_config['database']};"
+        f"UID={db_config['username']};"
+        f"PWD={db_config['password']}"
+    )
+    params = urllib.parse.quote_plus(connection_string)
+    return create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 
+
+@st.cache_resource
+def connect_to_sheet():
+    """Connect to Google Sheet with caching"""
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes
+    )
+    client = gspread.authorize(creds)
+    sheet_id = "1s4HCBrBf8COtP931iopwK3xICwGQx0R-MM7hYcJyTis"
+    workbook = client.open_by_key(sheet_id)
+    sheet = workbook.get_worksheet(2)
+    return sheet
+
+
+# Load models and credentials once
+model_data = load_content_model()
 tfidf = model_data["tfidf"]
 cosine_sim = model_data["cosine_sim"]
 indices = model_data["indices"]
 items_df = model_data["items_df"]
+SALES_CREDENTIALS = st.secrets["SALES_CREDENTIALS"]
+engine = get_database_engine()
 
 
-
-
-# https://github.com/mahmoud35634/Sanad-ML/releases/download/v1.0/content_model.pkl
-
+@lru_cache(maxsize=64)
 def recommend_similar_items(item_code, num_recommendations=5):
     """Recommend items similar to the given item_code using cosine similarity."""
     if item_code not in indices:
@@ -71,14 +104,15 @@ def recommend_similar_items(item_code, num_recommendations=5):
 
 
 def recommend_for_customer_content(sanad_id, num_recommendations=5):
-    df_b2b,summary_df = get_customers_B2B(sanad_id)
+    """Generate content-based recommendations"""
+    df_b2b, summary_df = get_customers_B2B(sanad_id)
     if df_b2b.empty:
         return pd.DataFrame(columns=["ITEM_CODE", "DESCRIPTION", "brand", "category"])
     
     recs = pd.DataFrame()
 
     for item_code in df_b2b["ITEM_CODE"].unique():
-        similar_items = recommend_similar_items(item_code, num_recommendations=10)  # more candidates
+        similar_items = recommend_similar_items(item_code, num_recommendations=10)
         recs = pd.concat([recs, similar_items])
 
     recs = recs[~recs["ITEM_CODE"].isin(df_b2b["ITEM_CODE"].unique())]
@@ -89,7 +123,7 @@ def recommend_for_customer_content(sanad_id, num_recommendations=5):
     seen_categories = set()
     for _, row in recs.iterrows():
         if row["category"] not in seen_categories:
-            diverse_list.append(row.to_dict())  # ensure dict format
+            diverse_list.append(row.to_dict())
             seen_categories.add(row["category"])
         if len(diverse_list) >= num_recommendations:
             break
@@ -102,73 +136,12 @@ def recommend_for_customer_content(sanad_id, num_recommendations=5):
     return pd.DataFrame(diverse_list)
 
 
-SALES_CREDENTIALS = st.secrets["SALES_CREDENTIALS"]
-
-# Get column indices (make sure these names exactly match the header)
-category_col_name = "Sction SR"  
-name_col_name = "SanadID"
-salesman_col_name = "SR Name "
-# --- Database Connection ---
-db_config = st.secrets["database"]
-# --- Database Connection ---
-connection_string = (
-        f"DRIVER={{{db_config['driver']}}};"
-        f"SERVER={db_config['server']};"
-        f"DATABASE={db_config['database']};"
-        f"UID={db_config['username']};"
-        f"PWD={db_config['password']}"
-)
-params = urllib.parse.quote_plus(connection_string)
-engine = create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
-
-
-@st.cache_resource
-def connect_to_sheet():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=scopes
-    )
-    client = gspread.authorize(creds)
-    sheet_id = "1s4HCBrBf8COtP931iopwK3xICwGQx0R-MM7hYcJyTis"
-    workbook = client.open_by_key(sheet_id)
-    sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
-    return sheet
-
-# Sidebar login
-st.sidebar.title("🔐 Salesman Login")
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.salesman = None
-
-    
-if not st.session_state.logged_in:
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    
-    if st.sidebar.button("Login"):
-        user_data = SALES_CREDENTIALS.get(username)
-        if user_data and user_data["password"] == password:
-            st.session_state.logged_in = True
-            st.session_state.salesman = user_data["salesman"]
-            st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
-            st.rerun()  # <--- This forces the app to jump directly into the main page
-        else:
-            st.sidebar.error("Invalid username or password")
-    
-    st.stop()  # Prevents loading the main page until logged in
-# Use this in your app instead of manual salesman selection:
-selected_salesman = st.session_state.salesman
-
-st.title("🛍️ Past 3 Months History Purchased Orders")
-st.write(f"This view is restricted to **{selected_salesman}** only.")
-#show the number of customers
-@st.cache_data
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_customers_from_salesman(selected_salesman):
+    """Get customers from Google Sheet with caching"""
     sheet = connect_to_sheet()
     data = sheet.get_all_values()
-    header = [h.strip() for h in data[0]]  # strip all header spaces
+    header = [h.strip() for h in data[0]]
     rows = data[1:]
 
     sr_name_col = "SR Name"
@@ -179,7 +152,6 @@ def get_customers_from_salesman(selected_salesman):
     governer_name_col = "Area"
     city_name_col = "City"
 
-    # Ensure required columns exist
     required_cols = [sr_name_col, sanad_id_col, phone_col, customer_name_col,
                      contact_name_col, governer_name_col, city_name_col]
     if not all(col in header for col in required_cols):
@@ -203,57 +175,225 @@ def get_customers_from_salesman(selected_salesman):
     return filtered
 
 
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_customers_B2B(sanad_id):
+    """Get B2B customer data for last 3 months with caching"""
+    if not sanad_id:
+        return pd.DataFrame(), pd.DataFrame()
 
-# --- Fetch customer data ---
+    with engine.connect() as conn:
+        # Main query for last 3 months
+        query = text("""
+        SELECT 
+            FORMAT(S.Date, 'MMM-yyyy') as Date,
+            i.ITEM_CODE,
+            i.DESCRIPTION,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
+            ROUND(SUM(s.Netsalesvalue), 0) as sales,
+            SUM(s.SalesQtyInCases) AS TotalQty
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        GROUP BY 
+            FORMAT(S.Date, 'MMM-yyyy'),
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
+            i.ITEM_CODE,
+            i.DESCRIPTION
+        ORDER BY sales DESC
+        """)
+
+        # Summary query
+        summary_query = text("""
+        SELECT 
+            MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
+            MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
+            FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+            ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
+            COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseTimes,
+            CASE 
+                WHEN COUNT(DISTINCT CAST(s.Date AS DATE)) > 1 
+                THEN (DATEDIFF(
+                        DAY, 
+                        MIN(CAST(s.Date AS DATE)), 
+                        MAX(CAST(s.Date AS DATE))
+                     ) / COUNT(DISTINCT CAST(s.Date AS DATE)))
+                ELSE NULL 
+            END AS AvgDaysBetweenPurchases
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        """)
+
+        df = pd.read_sql(query, conn, params={"sanad_id": sanad_id})
+        summary_df = pd.read_sql(summary_query, conn, params={"sanad_id": sanad_id})
+
+    return df, summary_df
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_monthly_data(sanad_id, month_offset):
+    """Get data for a specific month (0=current, -1=last month, -2=2 months ago)"""
+    if not sanad_id:
+        return pd.DataFrame(), pd.DataFrame()
+
+    with engine.connect() as conn:
+        # Monthly data query
+        query = text("""
+        SELECT 
+            FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
+            i.ITEM_CODE,
+            i.DESCRIPTION,
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
+            ROUND(SUM(s.Netsalesvalue), 0) as sales,
+            SUM(s.SalesQtyInCases) AS TotalQty
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, :month_offset_plus1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        GROUP BY 
+            FORMAT(S.Date, 'dd-MMM-yyyy'),
+            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
+            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
+            i.ITEM_CODE,
+            i.DESCRIPTION
+        ORDER BY S.Date DESC, sales DESC
+        """)
+
+        # Monthly summary
+        summary_query = text("""
+        SELECT 
+            FORMAT(DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
+            FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+            ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
+            COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
+            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, :month_offset_plus1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+        """)
+
+        params = {
+            "month_offset": month_offset,
+            "month_offset_plus1": month_offset + 1,
+            "sanad_id": sanad_id
+        }
+
+        df = pd.read_sql(query, conn, params=params)
+        summary_df = pd.read_sql(summary_query, conn, params=params)
+
+    return df, summary_df
+
+
+def get_month_name(offset):
+    """Get month name based on offset"""
+    current_date = datetime.datetime.now()
+    target_date = current_date + datetime.timedelta(days=30 * offset)
+    return target_date.strftime("%B %Y")
+
+
+# Sidebar login
+st.sidebar.title("🔐 Salesman Login")
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.salesman = None
+
+if not st.session_state.logged_in:
+    username = st.sidebar.text_input("Username")
+    password = st.sidebar.text_input("Password", type="password")
+    
+    if st.sidebar.button("Login"):
+        user_data = SALES_CREDENTIALS.get(username)
+        if user_data and user_data["password"] == password:
+            st.session_state.logged_in = True
+            st.session_state.salesman = user_data["salesman"]
+            st.sidebar.success(f"Welcome, {st.session_state.salesman}!")
+            st.rerun()
+        else:
+            st.sidebar.error("Invalid username or password")
+    
+    st.stop()
+
+# Main app
+selected_salesman = st.session_state.salesman
+
+st.title("🛍️ Customer Sales History & Recommendations")
+st.write(f"This view is restricted to **{selected_salesman}** only.")
+
+# Fetch customer data
 customer_data = get_customers_from_salesman(selected_salesman)
 customer_df = pd.DataFrame(customer_data)
-st.sidebar.write(f"Total Customers: {len(get_customers_from_salesman(selected_salesman))}")
+st.sidebar.write(f"Total Customers: {len(customer_data)}")
 
-# --- Strip whitespaces from column names ---
-customer_df.columns = customer_df.columns.str.strip()
+if not customer_df.empty:
+    customer_df.columns = customer_df.columns.str.strip()
 
-# --- Initialize session state ---
-for key in ["selected_sanad", "selected_phone", "selected_customer_name", "selected_contact_name","selected_Area","selected_City"]:
+# Initialize session state
+for key in ["selected_sanad", "selected_phone", "selected_customer_name", 
+            "selected_contact_name", "selected_Area", "selected_City"]:
     if key not in st.session_state:
         st.session_state[key] = ""
 
-# --- Sync callbacks ---
+# Sync callbacks
 def update_from_sanad():
     sanad = st.session_state.selected_sanad
-    match = customer_df[customer_df["SanadID"] == sanad]
-    if not match.empty:
-        row = match.iloc[0]
-        st.session_state.selected_phone = row["Phone_Number"]
-        st.session_state.selected_customer_name = row["Customer_Name"]
-        st.session_state.selected_contact_name = row["Contact_NAME"]
-        st.session_state.selected_Area = row["Area"]
-        st.session_state.selected_City = row["City"]
+    if not customer_df.empty:
+        match = customer_df[customer_df["SanadID"] == sanad]
+        if not match.empty:
+            row = match.iloc[0]
+            st.session_state.selected_phone = row["Phone_Number"]
+            st.session_state.selected_customer_name = row["Customer_Name"]
+            st.session_state.selected_contact_name = row["Contact_NAME"]
+            st.session_state.selected_Area = row["Area"]
+            st.session_state.selected_City = row["City"]
 
 def update_from_phone():
     phone = st.session_state.selected_phone
-    match = customer_df[customer_df["Phone_Number"] == phone]
-    if not match.empty:
-        row = match.iloc[0]
-        st.session_state.selected_sanad = row["SanadID"]
-        st.session_state.selected_customer_name = row["Customer_Name"]
-        st.session_state.selected_contact_name = row["Contact_NAME"]
-        st.session_state.selected_Area = row["Area"]
-        st.session_state.selected_City = row["City"]
+    if not customer_df.empty:
+        match = customer_df[customer_df["Phone_Number"] == phone]
+        if not match.empty:
+            row = match.iloc[0]
+            st.session_state.selected_sanad = row["SanadID"]
+            st.session_state.selected_customer_name = row["Customer_Name"]
+            st.session_state.selected_contact_name = row["Contact_NAME"]
+            st.session_state.selected_Area = row["Area"]
+            st.session_state.selected_City = row["City"]
 
 def update_from_contact_name():
     contact = st.session_state.selected_contact_name
-    match = customer_df[customer_df["Contact_NAME"] == contact]
-    if not match.empty:
-        row = match.iloc[0]
-        st.session_state.selected_sanad = row["SanadID"]
-        st.session_state.selected_phone = row["Phone_Number"]
-        st.session_state.selected_customer_name = row["Customer_Name"]
-        st.session_state.selected_Area = row["Area"]
-        st.session_state.selected_City = row["City"]
+    if not customer_df.empty:
+        match = customer_df[customer_df["Contact_NAME"] == contact]
+        if not match.empty:
+            row = match.iloc[0]
+            st.session_state.selected_sanad = row["SanadID"]
+            st.session_state.selected_phone = row["Phone_Number"]
+            st.session_state.selected_customer_name = row["Customer_Name"]
+            st.session_state.selected_Area = row["Area"]
+            st.session_state.selected_City = row["City"]
 
-
-
-# --- UI: Two-way selection ---
+# UI: Customer selection
 if not customer_df.empty:
     col1, col2, col3 = st.columns(3)
 
@@ -281,138 +421,105 @@ if not customer_df.empty:
             on_change=update_from_contact_name,
         )
 
-    # --- Show current selection ---
-    if all([
-        st.session_state.selected_sanad,
-        st.session_state.selected_phone,
-        st.session_state.selected_customer_name,
-        st.session_state.selected_contact_name,
-        st.session_state.selected_Area,
-        st.session_state.selected_City
-        
-    ]):
+    # Show current selection
+    if all([st.session_state.selected_sanad, st.session_state.selected_phone, 
+            st.session_state.selected_customer_name, st.session_state.selected_contact_name,
+            st.session_state.selected_Area, st.session_state.selected_City]):
         st.success(
             f"✅ Selected: **SanadID = {st.session_state.selected_sanad}**, "
             f"**Phone = {st.session_state.selected_phone}**, "
             f"**Customer = {st.session_state.selected_customer_name}**, "
-            f"**Contact = {st.session_state.selected_contact_name}**," 
-            f"**Contact = {st.session_state.selected_Area}**," 
-            f"**Contact = {st.session_state.selected_City}**," 
-
-
+            f"**Contact = {st.session_state.selected_contact_name}**, "
+            f"**Area = {st.session_state.selected_Area}**, "
+            f"**City = {st.session_state.selected_City}**"
         )
 else:
     st.warning("No customers found for selected salesman.")
 
-
-# Step 1: Load customer info from database
-@st.cache_data
-
-def get_customers_B2B(sanad_id):
-    if not sanad_id:
-        st.warning("No SanadID selected. Please select a SanadID to view B2B details.")
-        return pd.DataFrame()
-
-    with engine.connect() as conn:
-        query = f"""
-        SELECT 
-            FORMAT(S.Date , 'MMM-yyyy') as Date,
-             i.ITEM_CODE,
-            i.DESCRIPTION,
-            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
-            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)) AS Category,
-            ROUND(sum(s.Netsalesvalue),0) as sales,
-            SUM(s.SalesQtyInCases) AS TotalQty
-        FROM MP_Sales s
-        LEFT JOIN MP_Customers c
-            ON s.CustomerID = c.SITE_NUMBER
-        LEFT JOIN MP_Items i
-            ON s.ItemId = i.ITEM_CODE
-        WHERE 
-    s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-    AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
-            AND i.ITEM_CODE NOT LIKE '%XE%'
-        GROUP BY 
-             FORMAT(S.Date , 'MMM-yyyy') ,
-            RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
-            RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
-            i.ITEM_CODE,
-            i.DESCRIPTION
-        ORDER BY 
-        sales DESC
-        """
-
-
-        summary_query  = f"""
-
-SELECT 
-    MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
-    MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
-    FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
-    SUM(s.SalesQtyInCases) AS TotalQty,
-    COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseTimes,
-    CASE 
-        WHEN COUNT(DISTINCT CAST(s.Date AS DATE)) > 1 
-        THEN (DATEDIFF(
-                DAY, 
-                MIN(CAST(s.Date AS DATE)), 
-                MAX(CAST(s.Date AS DATE))
-             ) / COUNT(DISTINCT CAST(s.Date AS DATE)))
-        ELSE NULL 
-    END AS AvgDaysBetweenPurchases
-FROM MP_Sales s
-LEFT JOIN MP_Customers c
-    ON s.CustomerID = c.SITE_NUMBER
-LEFT JOIN MP_Items i
-    ON s.ItemId = i.ITEM_CODE
-WHERE 
-    s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-    AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-    AND c.CUSTOMER_B2B_ID = '{sanad_id}'
-    AND i.ITEM_CODE NOT LIKE '%XE%'
-
-        """
-
-        df = pd.read_sql(query, conn)
-        summary_df = pd.read_sql(summary_query, conn)
-
-    if df.empty:
-        st.warning("No data for this customer in the last 3 months.")
-    return df , summary_df
-
-
-st.sidebar.subheader("B2B Customer Details")
-
+# Main data display
 if st.session_state.selected_sanad:
-    df_b2b,df_summary = get_customers_B2B(st.session_state.selected_sanad)
-    if not df_b2b.empty:
-        st.dataframe(df_b2b, use_container_width=True)
-        st.subheader("There is summary details")
-        st.dataframe(df_summary, use_container_width=True)
-    else:
-        st.info("Please select a SanadID to view B2B details.")
-
+    # Create two columns for main view and monthly details
+    main_col, detail_col = st.columns([2, 1])
     
+    with main_col:
+        st.subheader("📊 Last 3 Months Summary")
+        with st.spinner("Loading customer data..."):
+            df_b2b, df_summary = get_customers_B2B(st.session_state.selected_sanad)
+            
+        if not df_b2b.empty:
+            st.dataframe(df_b2b, use_container_width=True)
+            st.subheader("📈 Summary Details")
+            st.dataframe(df_summary, use_container_width=True)
+        else:
+            st.info("No data found for the last 3 months.")
+    
+    with detail_col:
+        st.subheader("🗓️ Monthly Details")
+        
+        # Month selection buttons
+        months = [
+            ("Current Month", 0),
+            ("Last Month", -1),
+            ("2 Months Ago", -2)
+        ]
+        
+        selected_month = st.radio(
+            "Select Month:",
+            options=[m[0] for m in months],
+            key="month_selection"
+        )
+        
+        # Get month offset
+        month_offset = next(m[1] for m in months if m[0] == selected_month)
+        
+        if st.button(f"📅 Load {selected_month}", key="load_monthly"):
+            with st.spinner(f"Loading {selected_month} data..."):
+                monthly_df, monthly_summary = get_monthly_data(
+                    st.session_state.selected_sanad, 
+                    month_offset
+                )
+                
+            if not monthly_df.empty:
+                st.subheader(f"📋 {selected_month} Data")
+                st.dataframe(monthly_df, use_container_width=True, height=300)
+                
+                st.subheader(f"📊 {selected_month} Summary")
+                st.dataframe(monthly_summary, use_container_width=True)
+            else:
+                st.warning(f"No data found for {selected_month.lower()}.")
 
+else:
+    st.info("Please select a customer to view sales data.")
 
-# --- Sidebar logout ---
+# Sidebar logout
 if st.sidebar.button("🚪 Logout"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
 
-st.header("There is the Recommendation Section")
-top_n = st.slider("Number of Recommendations", 1, 20, 5)
+# Recommendations Section
+st.header("🎯 Recommendation Section")
 
-
-if st.button("📄 Show Content-Based Recommendations") and st.session_state.selected_sanad.strip() != "":
-    content_recs = recommend_for_customer_content(st.session_state.selected_sanad, num_recommendations=top_n)
-    if not content_recs.empty:
-        st.success(f"Top {top_n} Content-Based Recommendations for Customer ID: {st.session_state.selected_sanad}")
-        st.dataframe(content_recs.reset_index(drop=True))
-    else:
-        st.warning("No content-based recommendations found.")
-
-
-
+if st.session_state.selected_sanad:
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        top_n = st.slider("Number of Recommendations", 1, 20, 5)
+    
+    with col2:
+        if st.button("📄 Show Content-Based Recommendations", type="primary"):
+            with st.spinner("Generating recommendations..."):
+                try:
+                    content_recs = recommend_for_customer_content(
+                        st.session_state.selected_sanad, 
+                        num_recommendations=top_n
+                    )
+                    if not content_recs.empty:
+                        st.success(f"Top {top_n} Content-Based Recommendations for Customer ID: {st.session_state.selected_sanad}")
+                        st.dataframe(content_recs.reset_index(drop=True), use_container_width=True)
+                    else:
+                        st.warning("No content-based recommendations found.")
+                except Exception as e:
+                    st.error(f"Error generating recommendations: {str(e)}")
+else:
+    st.info("Please select a customer to view recommendations.")
