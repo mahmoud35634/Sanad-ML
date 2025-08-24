@@ -12,6 +12,8 @@ def load_css(file_name):
 
 # Call it at the start of your app
 load_css("style.css")
+st.set_page_config(page_title="co Purchased items", page_icon="💬", layout="wide")
+
 
 db_config = st.secrets["database"]
 # --- Database Connection ---
