@@ -594,7 +594,7 @@ if st.session_state.selected_sanad:
         
         if st.button("📅 2 Months Ago", key="two_months_ago_btn"):
             with st.spinner("Loading 2 months ago data..."):
-                monthly_df, monthly_summary = get_two_months_ago_data(st.session_state.selected_sanad)
+                monthly_df, monthly_summary = get_three_months_ago_data(st.session_state.selected_sanad)
                 
             if not monthly_df.empty:
                 st.subheader("📋 2 Months Ago Data")
