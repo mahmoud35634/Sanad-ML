@@ -357,7 +357,7 @@ def get_last_month_data(sanad_id):
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def get_three_months_ago_data(sanad_id):
+def get_two_months_ago_data(sanad_id):
     """Get two months ago data"""
     if not sanad_id:
         return pd.DataFrame(), pd.DataFrame()
@@ -377,7 +377,7 @@ def get_three_months_ago_data(sanad_id):
         LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
         LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
         WHERE 
-            s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            s.Date >= DATEADD(MONTH, -2, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
@@ -594,7 +594,7 @@ if st.session_state.selected_sanad:
         
         if st.button("📅 2 Months Ago", key="two_months_ago_btn"):
             with st.spinner("Loading 2 months ago data..."):
-                monthly_df, monthly_summary = get_three_months_ago_data(st.session_state.selected_sanad)
+                monthly_df, monthly_summary = get_two_months_ago_data(st.session_state.selected_sanad)
                 
             if not monthly_df.empty:
                 st.subheader("📋 2 Months Ago Data")
