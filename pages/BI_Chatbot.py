@@ -98,10 +98,6 @@ conn = connect_db()
 if conn is None:
     st.stop()
 
-
-# =========================
-# Helpers
-# =========================
 def execute_query_safe(conn, sql, retries=3, delay=1):
     """Run SQL with basic retry for deadlocks; return DataFrame or empty DF."""
     for attempt in range(retries):
@@ -140,22 +136,95 @@ def sanitize_and_extract_sql_from_gemini(response) -> str:
     Robustly extract SQL text from Gemini response across formats.
     """
     raw = ""
-    if hasattr(response, "text") and response.text:
+
+    # --- Case 1: response.text exists ---
+    if getattr(response, "text", None):
         raw = response.text
+
+    # --- Case 2: fallback to candidates.parts ---
     elif hasattr(response, "candidates") and response.candidates:
         try:
             parts = response.candidates[0].content.parts
-            raw = "".join(getattr(p, "text", "") for p in parts)
+            raw = "".join(getattr(p, "text", "") for p in parts if getattr(p, "text", None))
         except Exception:
             raw = ""
-    # Strip code fences if present
+
+    # --- Case 3: ultimate fallback ---
+    if not raw:
+        raw = str(response)
+
+    # --- Clean fences like ```sql ... ``` ---
     raw = raw.strip()
-    # Handle ```sql ... ``` or ``` ... ```
-    m = re.search(r"```sql\s*([\s\S]+?)```", raw, flags=re.IGNORECASE)
-    if not m:
-        m = re.search(r"```\s*([\s\S]+?)```", raw, flags=re.IGNORECASE)
-    sql = (m.group(1) if m else raw).strip()
+    match = re.search(r"```sql\s*([\s\S]+?)```", raw, flags=re.IGNORECASE)
+    if not match:
+        match = re.search(r"```\s*([\s\S]+?)```", raw, flags=re.IGNORECASE)
+
+    sql = (match.group(1) if match else raw).strip()
     return sql
+
+def get_previous_results_summary():
+    """Generate a summary of previous results available for reference."""
+    if not st.session_state.chat_history:
+        return ""
+    
+    summary = "\n=== PREVIOUS QUERY RESULTS AVAILABLE FOR REFERENCE ===\n"
+    result_count = 0
+    
+    for i, msg in enumerate(st.session_state.chat_history):
+        if msg.get("role") == "assistant" and isinstance(msg.get("df"), pd.DataFrame) and not msg["df"].empty:
+            result_count += 1
+            df = msg["df"]
+            
+            # Get the previous user question for context
+            user_question = ""
+            if i > 0 and st.session_state.chat_history[i-1].get("role") == "user":
+                user_question = st.session_state.chat_history[i-1]["content"]
+            
+            summary += f"\nResult #{result_count}:\n"
+            summary += f"- User Question: {user_question}\n"
+            summary += f"- Columns: {', '.join(df.columns.tolist())}\n"
+            summary += f"- Row Count: {len(df)}\n"
+            summary += f"- Sample Data (first 2 rows):\n{df.head(2).to_string()}\n"
+            
+            if msg.get("sql"):
+                summary += f"- SQL Used: {msg['sql']}\n"
+    
+    if result_count == 0:
+        return ""
+    
+    summary += f"\n=== END PREVIOUS RESULTS (Total: {result_count} datasets available) ===\n"
+    summary += "\nIMPORTANT: If the user asks to analyze, filter, or work with 'previous results', 'last results', or 'the data above', you should reference the most recent result dataset. You can perform operations like filtering, grouping, calculations on the previous results by understanding their structure from the summary above.\n"
+    
+    return summary
+
+def create_analysis_query_from_previous_results(user_request, previous_df, previous_sql, previous_question):
+    """
+    Generate a new SQL query that builds upon previous results.
+    This function helps create queries that reference or analyze previous data.
+    """
+    if previous_df is None or previous_df.empty:
+        return None
+    
+    # Create a summary of the previous results
+    cols_info = ", ".join([f"{col} ({previous_df[col].dtype})" for col in previous_df.columns])
+    
+    analysis_prompt = f"""
+Based on the user's new request: "{user_request}"
+
+The user wants to work with previous results that have these characteristics:
+- Previous Question: {previous_question}
+- Previous SQL: {previous_sql}
+- Columns Available: {cols_info}
+- Row Count: {len(previous_df)}
+- Sample Data:
+{previous_df.head(3).to_string()}
+
+Generate a NEW SQL query that would produce similar results to what the user is asking for based on the previous data structure and their new request. 
+
+
+"""
+    
+    return analysis_prompt
 
 # =========================
 # Schema Prompt
@@ -163,57 +232,33 @@ def sanitize_and_extract_sql_from_gemini(response) -> str:
 def Schema_description():
     # >>> Paste your full schema/business-rules prompt here <<<
     return """
-You are a SQL expert for an e-commerce database with three main tables: MP_Sales, MP_Customers, and MP_Items.
-Your job is to generate valid SQL Server SELECT queries only based on user requests, following these exact rules:
+You are a SQL expert... Your job is to generate valid SQL Server SELECT queries.
 
-Database Schema Overview:
+## Database Schema Overview
 
-MP_Sales (Sales Transactions)
+### MP_Sales (Sales Transactions)
+- **Joins**: `MP_Sales.CustomerID = MP_Customers.SITE_NUMBER` and `MP_Sales.ItemId = MP_Items.ITEM_CODE`
+- **Important Columns**: `Date`, `Netsalesvalue`, `SalesQtyInPieces`, `ItemId`, `CustomerID` ,  `SalesQtyInCases`. `Order_Number`
+- **Rules**:
+  1. Do not use the `month` column; extract month from `Date` if needed (e.g., `MONTH(Date)`).
+  2. Always format sales values using `ROUND(s.Netsalesvalue, 0)`.
+  3. For brand information, always join with the `MP_Items` table; do not use `Master_brand` from `mp_sales`.
+  4. use SalesQtyInCases if i asked on cases or asked in arabic علي كراتين
 
-Joins:
-MP_Sales.CustomerID = MP_Customers.SITE_NUMBER
-MP_Sales.ItemId = MP_Items.ITEM_CODE
+### MP_Customers (Customer Master)
+- **Joins**: `MP_Sales.CustomerID = MP_Customers.SITE_NUMBER`
+- **Important Columns**: `GOVERNER_NAME`, `CUSTOMER_B2B_ID`, `CUSTOMER_NAME`.
+- **Rules**:
+  1. For "active customers", count customers with purchases.
+  2. For "net active customers", count customers with `Netsalesvalue > 1`.
+  3. When filtering by an attribute, format the count like this: `FORMAT(COUNT(DISTINCT CUSTOMER_B2B_ID), 'N0')`.
 
-Important Columns:
-Date (YYYY-MM-DD) — transaction date
-Netsalesvalue — sales value after tax/discounts
-SalesQtyInPieces, SalesQtyInCases, order_Number
-ItemId, CustomerID — for joins
-Master_brand, sub_brand, brandname, Sales_Channel, itemname
-project_id, company, Org_ID, InvoiceId
-
-Rules:
-
-Do not use month column; extract month from Date if needed.
-
-Always Format sales values using  Round(s.Netsalesvalue,0)
-
-if i asked about average for brand over months so the avgerage i need to be calculated Sum(Netsalesvalue/no of months)
-
-MP_Customers (Customer Master)
-
-Joins: MP_Sales.CustomerID = MP_Customers.SITE_NUMBER
-
-Important Columns:
-GOVERNER_NAME, CUSTOMER_B2B_ID, CUSTOMER_NAME, SALES_CHANNEL_CODE,
-SECTION_TYPE, CUSTOMER_NUMBER, CITY_NAME, AREA_NAME,
-LOCATION, ADDRESS1, SITE_NUMBER, ACCOUNT_CREATION_DATE, SITE_CREATION_DATE
 
 Rules:
 
 Valid governorate filter: use GOVERNER_NAME.
 
-If user asks "active customers" → customers with purchases/orders.
-
-If user asks "active net customers" → customers with Netsalesvalue > 1.
-
-If user says "net active" or just "active" in general → return total count only, not list.
-
-If filtered by company or other attribute → return total count per that attribute and use  FORMAT(Count (Distinct CUSTOMER_B2B_ID), 'N0')
-
-if i asked like i want to show customers who made a purchased on specif month dont search with site number search with B2B id 
-
-MP_Items (Product Master)
+### MP_Items (Product Master)
 
 Joins: MP_Sales.ItemId = MP_Items.ITEM_CODE
 
@@ -539,28 +584,177 @@ Use LEFT(MASTER_BRAND, CHARINDEX('|', MASTER_BRAND) - 1) to extract brand code
 
 This is all companies name in [MASTER_BRAND]
 
-MG2 (Category) — Use textual part only:
+MG2 (Category) — Use textual part only: 
+
+720046|البسكويت والحلويات
+841044|بقوليات و توابل
+720048|منتجات العناية الشخصية
+720050|المنتجات التموينية (البقالة)
+NULL
+718047|المياه
+1875|Default
+720044|المشروبات الباردة
+720049|الشييسي و المقرمشات
+711054|منتجات البان
+720047|المعلبات و المأكولات
+934046|الورقيات و الحفاضات
+718049|المنظفات و أدوات المنزل
+720045|المشروبات الساخنة
+
+this is listed MG3
+
+
+786044|مزيل بقع
+719050|شوكولاتة
+719056|مشروبات سريعة الذوبان
+719067|خل وماء ورد
+719044|حليب خالي الدسم
+851045|عسل و طحينة
+711146|مسحوق غسيل
+719061|فول ومعلبات
+826045|بادى سبلاش
+719075|معطر جو
+859044|العناية بالجسم
+719062|مخللات
+711121|قهوة
+846045|مرقات و خلطات
+711067|بطاريات
+711066|بسكويت
+719068|زيت وسمن
+719080|جل معقم
+711073|تونة
+719086|مستحضرات تجميل
+711094|سحلب
+846047|كاكاو و فرابيه
+820045|صوص طعام
+711178|دقيق
+719049|مشروب زبادي
+711101|شاي
+711173|نسكافية
+948044|قهوه مثلجه
+719083|فوط صحية
+719074|مطهر
+719048|لبن بودر
+NULL
+718047|المياه
+719077|منظف اطباق
+711165|ملمع
+711151|مشروبات غازية
+719054|مخبوزات مقرمشة
+711102|شرائح بطاطس
+1875|Default
+719071|فويل المونيوم
+719076|منظف
+851044|مستلزمات حلويات
+804045|وافل
+719073|مستلزمات المطبخ
+711084|رايب
+711090|زيت
+711164|ملح
+711097|سكر
+711064|اكياس
+711079|حلاوة
+846048|اسبرسو
+711150|مشروبات طاقة
+719053|مصاصة
+711176|نودلز
+711141|مربي
+711163|مكرونة
+719078|حفاضات
+711108|صلصة
+875045|حبوب و مخبوزات
+719051|لبان و بونبون
+711057|اجبان
+711124|كرواسون
+711107|صابون
+719052|جيلي مارشيملو
+711112|عصائر
+888045|العنايه بالاسنان
+711058|ارز
+719079|العناية بالشعر
+936045|مناديل مبلله
+936046|الحفاضات
+846046|صوص حلو
+719084|كريم مرطب
+711162|مقرمشات
+711098|سمن
+719082|غسول للايدي
+846044|توابل
+719072|مبيد حشري
+711062|اعشاب
+719047|حليب نكهات
+711087|زبادي
+820046|كاتشب ومايونيز
+711159|معمول
+719045|حليب كامل الدسم
+845044|البقوليات
+719085|ماسك للوجه
+852047|تمور
+719070|جل منظف
+936044|المناديل
+711132|كيك
+719057|مشروبات شعير
+719060|سبريد
+719046|حليب نصف دسم
+719055|شربات
+
+use it if i asked in arabic on one of them 
+and use N before in arabic filter
+
+
+AND USE MASTER_BRAND in items for compaines
 ...
 """
 
 # =========================
-# Session State (Chat)
-# =========================
+# Initialize session state for chat history and result tracking
 if "chat_history" not in st.session_state:
-    # Each entry: {"role": "user"/"assistant", "content": str, "sql": Optional[str], "df": Optional[pd.DataFrame], "raw": Optional[str]}
+    # Each entry: {"role": "user"/"assistant", "content": str, "sql": Optional[str], "df": Optional[pd.DataFrame], "query_id": Optional[str]}
     st.session_state.chat_history = []
 
-# Sidebar: tools
+if "query_counter" not in st.session_state:
+    st.session_state.query_counter = 0
+
+# Sidebar: tools and previous results info
 with st.sidebar:
     st.markdown("### Tools")
     clear = st.button("🧹 Clear Conversation")
     if clear:
         st.session_state.chat_history = []
+        st.session_state.query_counter = 0
         st.rerun()
 
-    # debug_mode = False
-    # if st.session_state[BI_KEY]:
-    #     debug_mode = st.toggle("🔎 BI Debug Mode (show raw LLM output)", value=False, help="BI only")
+    # 🧠 Enable/Disable memory
+    use_memory = st.toggle("🧠 Enable Chat Memory", value=True)
+    
+    # Show available previous results
+    st.markdown("### 📊 Previous Results")
+    result_datasets = []
+    for i, msg in enumerate(st.session_state.chat_history):
+        if msg.get("role") == "assistant" and isinstance(msg.get("df"), pd.DataFrame) and not msg["df"].empty:
+            # Get the previous user question for context
+            user_question = ""
+            if i > 0 and st.session_state.chat_history[i-1].get("role") == "user":
+                user_question = st.session_state.chat_history[i-1]["content"][:50] + "..."
+            result_datasets.append({
+                "index": len(result_datasets) + 1,
+                "question": user_question,
+                "rows": len(msg["df"]),
+                "columns": len(msg["df"].columns)
+            })
+    
+    if result_datasets:
+        for dataset in result_datasets:
+            st.markdown(f"""
+            <div class="previous-results-info">
+                <strong>Dataset #{dataset['index']}</strong><br>
+                <small>{dataset['question']}</small><br>
+                📊 {dataset['rows']} rows, {dataset['columns']} columns
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown("💡 **Tip:** You can reference these results in new queries by saying things like 'filter the last results', 'group the previous data', or 'show me more details about the data above'.")
+    else:
+        st.markdown("*No previous results available*")
 
 # =========================
 # Replay History
@@ -568,104 +762,197 @@ with st.sidebar:
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        if st.session_state[BI_KEY] and msg.get("sql"):
+        if st.session_state[BI_AUTH_KEY] and msg.get("sql"):
             with st.expander("View SQL"):
                 st.code(msg["sql"], language="sql")
         if isinstance(msg.get("df"), pd.DataFrame) and not msg["df"].empty:
-            # Export buttons
-            with st.container():
-                col_a, col_b = st.columns([1, 1])
-                csv = msg["df"].to_csv(index=False).encode("utf-8-sig")
-                with col_a:
-                    st.download_button("⬇️ Download CSV", data=csv, file_name="results.csv", mime="text/csv", key=f"csv_{id(msg)}")
-                # XLSX
-                with io.BytesIO() as output:
-                    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-                        msg["df"].to_excel(writer, index=False, sheet_name="Results")
-                    xlsx_data = output.getvalue()
-                with col_b:
-                    st.download_button("⬇️ Download Excel", data=xlsx_data, file_name="results.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"xlsx_{id(msg)}")
-
             st.dataframe(msg["df"])
-
-        # if st.session_state[BI_KEY] and debug_mode and msg.get("raw"):
-        #     with st.expander("LLM Raw Output (Debug)"):
-        #         st.text(msg["raw"])
 
 # =========================
 # Chat Input & Handling
 # =========================
-user_input = st.chat_input("Ask your question in Arabic or English")
+user_input = st.chat_input("Ask your question in Arabic or English, or reference previous results")
+
 if user_input:
-    # Show user message immediately
+    # Save user message immediately
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
     st.chat_message("user").markdown(user_input)
 
     with st.chat_message("assistant"):
         with st.spinner("Generating SQL and executing... ⏳"):
             try:
-                # Build prompt
-                full_prompt = f"{Schema_description()}\n\n{user_input}"
+                # Check if user is referencing previous results
+                reference_keywords = [
+                    "previous", "last", "above", "earlier", "before", "that data", "those results",
+                    "the data", "this data", "same data", "filter", "group", "analyze",
+                    "السابق", "البيانات", "النتائج", "المعلومات"
+                ]
+                
+                is_referencing_previous = any(keyword.lower() in user_input.lower() for keyword in reference_keywords)
+                
+                # Get the most recent result dataset
+                last_result_df = None
+                last_result_sql = None
+                last_user_question = None
+                
+                for i in range(len(st.session_state.chat_history) - 2, -1, -1):  # Start from second-to-last (skip current user message)
+                    msg = st.session_state.chat_history[i]
+                    if msg.get("role") == "assistant" and isinstance(msg.get("df"), pd.DataFrame) and not msg["df"].empty:
+                        last_result_df = msg["df"]
+                        last_result_sql = msg.get("sql", "")
+                        # Find the corresponding user question
+                        if i > 0 and st.session_state.chat_history[i-1].get("role") == "user":
+                            last_user_question = st.session_state.chat_history[i-1]["content"]
+                        break
+
+                # ---- Build conversational prompt ----
+                if use_memory:
+                    history_text = ""
+                    for msg in st.session_state.chat_history:
+                        history_text += f"{msg['role'].upper()}: {msg['content']}\n"
+                        if msg.get("sql"):
+                            history_text += f"SQL_USED: {msg['sql']}\n"
+                    conversation_context = history_text
+                else:
+                    # Only last message
+                    conversation_context = f"USER: {user_input}\n"
+
+                # Add previous results summary if memory is enabled or user is referencing previous data
+                previous_results_info = ""
+                if use_memory or is_referencing_previous:
+                    previous_results_info = get_previous_results_summary()
+
+                # Special handling for queries that reference previous results
+                if is_referencing_previous and last_result_df is not None:
+                    # Create a specialized prompt for analyzing previous results
+                    analysis_prompt = create_analysis_query_from_previous_results(
+                        user_input, last_result_df, last_result_sql, last_user_question
+                    )
+                    
+                    full_prompt = f"""
+You are a SQL assistant with access to previous query results.
+
+Database Schema & Business Rules:
+{Schema_description()}
+
+{previous_results_info}
+
+{analysis_prompt}
+
+The user is asking: "{user_input}"
+
+Based on the previous results structure and the user's request, generate a NEW SQL query that addresses what they're asking for.
+
+Write ONLY the SQL query (no explanation).
+"""
+                else:
+                    # Regular prompt
+                    full_prompt = f"""
+You are a SQL assistant with memory.
+Your job is to generate valid SQL Server SELECT queries based on user requests.
+
+If the user refers to something from the past (like 'same as before', 'previous query', 'change month', 'for brand X instead'), 
+use the chat history below to understand the context.
+
+Database Schema & Business Rules:
+{Schema_description()}
+
+{previous_results_info}
+
+Conversation Context:
+{conversation_context}
+
+Now write ONLY the SQL query (no explanation) that answers the last USER question.
+"""
 
                 # Call Gemini
                 model = genai.GenerativeModel("gemini-2.5-flash")
                 response = model.generate_content(full_prompt)
 
-                # Extract SQL robustly
-                raw_output = ""
-                try:
-                    raw_output = response.text if hasattr(response, "text") and response.text else str(response)
-                except Exception:
-                    raw_output = str(response)
-
+                # Extract SQL
                 sql_query = sanitize_and_extract_sql_from_gemini(response)
-
                 if not sql_query:
                     raise ValueError("Empty SQL returned from model.")
-
-                # Safety check: SELECT only
                 if not is_safe_select(sql_query):
                     raise ValueError("Generated SQL failed safety check (SELECT-only policy).")
-
+                conn =connect_db()
                 # Execute SQL
                 df = execute_query_safe(conn, sql_query)
 
-                # Prepare assistant reply
-                reply_text = "Here are your results:"
+                # Increment query counter
+                st.session_state.query_counter += 1
+                query_id = f"query_{st.session_state.query_counter}"
+
+                # Assistant reply with context about previous results if applicable
+                if is_referencing_previous and last_result_df is not None:
+                    reply_text = f"Here are your results based on the previous data analysis:"
+                else:
+                    reply_text = "Here are your results:"
+                
                 st.markdown(reply_text)
 
-                if st.session_state[BI_KEY]:
+                if st.session_state[BI_AUTH_KEY]:
                     with st.expander("View SQL"):
                         st.code(sql_query, language="sql")
 
                 if not df.empty:
-                    # Quick exports for fresh result
+                    # Show comparison info if referencing previous results
+                    if is_referencing_previous and last_result_df is not None:
+                        col_info1, col_info2 = st.columns(2)
+                        with col_info1:
+                            st.info(f"📊 **Current Results:** {len(df)} rows, {len(df.columns)} columns")
+                        with col_info2:
+                            st.info(f"📋 **Previous Results:** {len(last_result_df)} rows, {len(last_result_df.columns)} columns")
+
+                    # Export buttons
                     col_a, col_b = st.columns([1, 1])
-                    # # csv = df.to_csv(index=False).encode("utf-8-sig")
-                    # with col_a:
-                    #     st.download_button("⬇️ Download CSV", data=csv, file_name="results.csv", mime="text/csv")
+                    csv = df.to_csv(index=False).encode("utf-8-sig")
+                    with col_a:
+                        st.download_button("⬇️ Download CSV", data=csv,
+                                           file_name=f"results_{query_id}.csv", mime="text/csv")
                     with io.BytesIO() as output:
                         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
                             df.to_excel(writer, index=False, sheet_name="Results")
                         xlsx_data = output.getvalue()
                     with col_b:
-                        st.download_button("⬇️ Download Excel", data=xlsx_data, file_name="results.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        st.download_button("⬇️ Download Excel", data=xlsx_data,
+                                           file_name=f"results_{query_id}.xlsx", 
+                                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                     st.dataframe(df)
+                    
+                    # Show helpful suggestions for further analysis
+                    # if len(df) > 0:
+                    #     st.markdown("---")
+                    #     st.markdown("💡 **What you can do next:**")
+                    #     suggestions = [
+                    #         "Filter these results by a specific criteria",
+                    #         "Group this data differently", 
+                    #         "Show trends over time from this data",
+                    #         "Find the top performers in these results",
+                    #         "Compare these results with a different time period"
+                    #     ]
+                    #     for i, suggestion in enumerate(suggestions, 1):
+                    #         st.markdown(f"{i}. {suggestion}")
                 else:
                     st.info("No data returned for this query.")
 
-                # Save to history (user + assistant)
-                st.session_state.chat_history.append({"role": "user", "content": user_input})
+                # Save assistant response to history with query ID
                 st.session_state.chat_history.append({
                     "role": "assistant",
                     "content": reply_text,
-                    "sql": sql_query if st.session_state[BI_KEY] else None,
+                    "sql": sql_query if st.session_state[BI_AUTH_KEY] else None,
                     "df": df,
-                    # "raw": raw_output if (st.session_state[BI_KEY] and debug_mode) else None
+                    "query_id": query_id,
                 })
 
             except Exception as e:
                 error_text = f"❌ Failed to generate SQL. Reason: {str(e)}"
                 st.error(error_text)
-                st.session_state.chat_history.append({"role": "assistant", "content": error_text})
-
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": error_text,
+                    "sql": None,
+                    "df": pd.DataFrame(),
+                    "query_id": None,
+                })
