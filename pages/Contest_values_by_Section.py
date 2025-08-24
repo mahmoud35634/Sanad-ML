@@ -48,14 +48,17 @@ if not st.session_state[BI_key]:
 @st.cache_resource
 def connect_to_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file(
-        "secrets/credentials (2).json", scopes=scopes
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes
     )
     client = gspread.authorize(creds)
     sheet_id = "1s4HCBrBf8COtP931iopwK3xICwGQx0R-MM7hYcJyTis"
     workbook = client.open_by_key(sheet_id)
-    return workbook.get_worksheet(2)  # third sheet
+    sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
+    return sheet
 
+    
 # --- Brand list from DB ---
 @st.cache_data
 def get_brand_list():
