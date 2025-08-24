@@ -357,7 +357,7 @@ def get_last_month_data(sanad_id):
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def get_two_months_ago_data(sanad_id):
+def get_three_months_ago_data(sanad_id):
     """Get two months ago data"""
     if not sanad_id:
         return pd.DataFrame(), pd.DataFrame()
@@ -393,7 +393,7 @@ def get_two_months_ago_data(sanad_id):
         # Two months ago summary
         summary_query = text(f"""
         SELECT 
-            FORMAT(DATEADD(MONTH, -2, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
+            FORMAT(DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
             FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
@@ -406,6 +406,7 @@ def get_two_months_ago_data(sanad_id):
             AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
+        group by FORMAT(DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy')
         """)
 
         df = pd.read_sql(query, conn)
