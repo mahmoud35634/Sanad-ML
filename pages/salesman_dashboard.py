@@ -183,7 +183,7 @@ def get_customers_B2B(sanad_id):
 
     with engine.connect() as conn:
         # Main query for last 3 months
-        query = text("""
+        query = text(f"""
         SELECT 
             FORMAT(S.Date, 'MMM-yyyy') as Date,
             i.ITEM_CODE,
@@ -198,7 +198,7 @@ def get_customers_B2B(sanad_id):
         WHERE 
             s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
             FORMAT(S.Date, 'MMM-yyyy'),
@@ -210,7 +210,7 @@ def get_customers_B2B(sanad_id):
         """)
 
         # Summary query
-        summary_query = text("""
+        summary_query = text(f"""
         SELECT 
             MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
             MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
@@ -232,12 +232,12 @@ def get_customers_B2B(sanad_id):
         WHERE 
             s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         """)
 
-        df = pd.read_sql(query, conn, params={"sanad_id": sanad_id})
-        summary_df = pd.read_sql(summary_query, conn, params={"sanad_id": sanad_id})
+        df = pd.read_sql(query, conn)
+        summary_df = pd.read_sql(summary_query, conn)
 
     return df, summary_df
 
@@ -250,7 +250,7 @@ def get_monthly_data(sanad_id, month_offset):
 
     with engine.connect() as conn:
         # Monthly data query
-        query = text("""
+        query = text(f"""
         SELECT 
             FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
             i.ITEM_CODE,
@@ -265,7 +265,7 @@ def get_monthly_data(sanad_id, month_offset):
         WHERE 
             s.Date >= DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND s.Date < DATEADD(MONTH, :month_offset_plus1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
             FORMAT(S.Date, 'dd-MMM-yyyy'),
@@ -277,7 +277,7 @@ def get_monthly_data(sanad_id, month_offset):
         """)
 
         # Monthly summary
-        summary_query = text("""
+        summary_query = text(f"""
         SELECT 
             FORMAT(DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
             FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
@@ -290,18 +290,14 @@ def get_monthly_data(sanad_id, month_offset):
         WHERE 
             s.Date >= DATEADD(MONTH, :month_offset, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
             AND s.Date < DATEADD(MONTH, :month_offset_plus1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND c.CUSTOMER_B2B_ID = :sanad_id
+            AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         """)
 
-        params = {
-            "month_offset": month_offset,
-            "month_offset_plus1": month_offset + 1,
-            "sanad_id": sanad_id
-        }
+ 
 
-        df = pd.read_sql(query, conn, params=params)
-        summary_df = pd.read_sql(summary_query, conn, params=params)
+        df = pd.read_sql(query, conn)
+        summary_df = pd.read_sql(summary_query, conn)
 
     return df, summary_df
 
@@ -310,7 +306,7 @@ def get_month_name(offset):
     """Get month name based on offset"""
     current_date = datetime.datetime.now()
     target_date = current_date + datetime.timedelta(days=30 * offset)
-    return target_date.strftime("%B %Y")
+    return target_date.strftime("%B %Y")s
 
 
 # Sidebar login
