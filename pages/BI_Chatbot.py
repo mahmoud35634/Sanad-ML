@@ -32,10 +32,11 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # =========================
 # Authentication
 # =========================
-BI_PASSWORD = "BI_admin"
-BI_KEY = "auth_bi_chat"
-TRADE_PASSWORD = "Trade_admin"
-TRADE_KEY = "auth_trade_chat"
+BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
+BI_KEY = st.secrets["auth"]["BI_KEY"]
+TRADE_PASSWORD = st.secrets["auth"]["TRADE_PASSWORD "]
+TRADE_KEY =st.secrets["auth"]["TRADE_KEY"]
+
 
 if BI_KEY not in st.session_state:
     st.session_state[BI_KEY] = False
@@ -72,10 +73,6 @@ st.subheader("Welcome! Ask anything about insights, and get answers in real-time
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.image("logoo.png", width=200)
-
-
-
-
 
 @st.cache_resource
 def connect_db():
@@ -762,7 +759,7 @@ with st.sidebar:
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        if st.session_state[BI_AUTH_KEY] and msg.get("sql"):
+        if st.session_state[BI_KEY] and msg.get("sql"):
             with st.expander("View SQL"):
                 st.code(msg["sql"], language="sql")
         if isinstance(msg.get("df"), pd.DataFrame) and not msg["df"].empty:
@@ -891,7 +888,7 @@ Now write ONLY the SQL query (no explanation) that answers the last USER questio
                 
                 st.markdown(reply_text)
 
-                if st.session_state[BI_AUTH_KEY]:
+                if st.session_state[BI_KEY]:
                     with st.expander("View SQL"):
                         st.code(sql_query, language="sql")
 
@@ -941,7 +938,7 @@ Now write ONLY the SQL query (no explanation) that answers the last USER questio
                 st.session_state.chat_history.append({
                     "role": "assistant",
                     "content": reply_text,
-                    "sql": sql_query if st.session_state[BI_AUTH_KEY] else None,
+                    "sql": sql_query if st.session_state[BI_KEY] else None,
                     "df": df,
                     "query_id": query_id,
                 })
