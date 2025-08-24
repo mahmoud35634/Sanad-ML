@@ -1,0 +1,101 @@
+
+/* Global App Background */
+.stApp {
+    background-color: #2e2e30; /* light gray for readability */
+    color: #ddc9c9;
+    font-family: "Segoe UI", sans-serif;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #0F172A; /* dark navy */
+    padding: 25px 15px;
+    border-right: 2px solid #1E293B;
+}
+section[data-testid="stSidebar"] h2, 
+section[data-testid="stSidebar"] h3 {
+    color: #746940; /* Gold highlight */
+    text-align: left;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+section[data-testid="stSidebar"] a {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    padding: 10px 14px;
+    border-radius: 8px;
+    display: block;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+section[data-testid="stSidebar"] a:hover {
+    background-color: #1E293B;
+    color: #FACC15 !important;
+}
+section[data-testid="stSidebar"] .css-1v0mbdj a[aria-current="page"] {
+    background-color: #FACC15 !important;
+    color: #0F172A !important;
+    font-weight: 700 !important;
+}
+/* Change label color above selectboxes/multiselects/date input/number input */
+.stSelectbox label, .stMultiSelect label, .stDateInput label, .stNumberInput label {
+    color: #FACC15 !important;   /* gold */
+    font-weight: 600;            /* make it bold */
+    font-size: 1rem;             /* adjust size */
+}
+/* Buttons */
+div.stButton > button {
+    background-color: #2563EB;
+    color: rgb(255, 255, 255);
+    border-radius: 10px;
+    padding: 0.6em 1.5em;
+    font-weight: 600;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: 0.3s;
+}
+div.stButton > button:hover {
+    background-color: #1D4ED8;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+/* Tool Cards */
+.tool-card {
+    background: #1E293B;
+    color: #F1F5F9;
+    border-radius: 12px;
+    padding: 18px;
+    margin: 10px 0;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: block;
+    text-decoration: none;
+}
+.tool-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.35);
+}
+.tool-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: #FACC30;
+}
+.tool-desc {
+    font-size: 0.9rem;
+    color: #E2E8F0;
+}
+.tool-icon {
+    margin-right: 8px;
+}
+
+/* Previous Results Indicator */
+.previous-results-info {
+    background: #1E293B;
+    border-left: 4px solid #FACC15;
+    padding: 10px 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+    color: #E2E8F0;
+}

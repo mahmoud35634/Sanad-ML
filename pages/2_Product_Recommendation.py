@@ -4,6 +4,13 @@ import os
 import requests
 
 st.title("🛒 Product Recommender")
+def load_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Call it at the start of your app
+load_css("style.css")
+
 
 BI_PASSWORD = st.secrets["auth"]["BI_PASSWORD"]
 BI_KEY = st.secrets["auth"]["BI_KEY"]

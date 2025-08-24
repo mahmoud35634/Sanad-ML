@@ -5,6 +5,14 @@ from sqlalchemy import create_engine
 import datetime
 
 
+# Function to load and inject CSS
+def load_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Call it at the start of your app
+load_css("style.css")
+
 db_config = st.secrets["database"]
 # --- Database Connection ---
 connection_string = (

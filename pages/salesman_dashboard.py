@@ -10,6 +10,18 @@ import json
 import os
 import requests
 
+
+
+
+# Function to load and inject CSS
+def load_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Call it at the start of your app
+load_css("style.css")
+
+
 @st.cache_resource
 def load_content_model():
     local_path = "models/content_model.pkl"
@@ -36,6 +48,7 @@ tfidf = model_data["tfidf"]
 cosine_sim = model_data["cosine_sim"]
 indices = model_data["indices"]
 items_df = model_data["items_df"]
+
 
 
 
@@ -117,7 +130,7 @@ def connect_to_sheet():
         scopes=scopes
     )
     client = gspread.authorize(creds)
-    sheet_id = "13YWnjeLIKjno8-klspJoBtgQ9uAOdSFda8nQx0rlINs"
+    sheet_id = "1s4HCBrBf8COtP931iopwK3xICwGQx0R-MM7hYcJyTis"
     workbook = client.open_by_key(sheet_id)
     sheet = workbook.get_worksheet(2)  # index 2 = 3rd sheet
     return sheet

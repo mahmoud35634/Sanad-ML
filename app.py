@@ -11,47 +11,13 @@ with col2:
 st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>Sanad Analytics Toolkit</h1>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center; color: gray;'>Welcome! Choose a tool from the sidebar to get started.</h4>", unsafe_allow_html=True)
 st.markdown("---")
+# Function to load and inject CSS
+def load_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# --- Style for cards ---
-st.markdown("""
-<style>
-.tool-card {
-    background-color: #f9f9f9;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    transition: box-shadow 0.3s ease;
-    cursor: pointer;
-    text-decoration: none;
-    display: block;
-}
-.tool-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    background-color: #f0f0f0;
-}
-.tool-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: #0e1117;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-}
-.tool-icon {
-    font-size: 22px;
-    margin-right: 10px;
-}
-.tool-desc {
-    font-size: 15px;
-    color: #5c5c5c;
-    margin-left: 32px;
-}
-a {
-    text-decoration: none;
-}
-</style>
-""", unsafe_allow_html=True)
+# Call it at the start of your app
+load_css("style.css")
 
 # --- Tools: (icon, title, description, page_name)
 tools = [
