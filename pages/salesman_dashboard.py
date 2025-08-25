@@ -312,7 +312,7 @@ def get_customers_B2B(sanad_id):
                              SELECT
             MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
             MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
-            Sum(s.Netsalesvalue) AS SalesAfterReturns,,
+            Sum(s.Netsalesvalue) AS SalesAfterReturns,
 			Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END) AS returns,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseTimes,
