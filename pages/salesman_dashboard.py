@@ -351,6 +351,7 @@ def get_current_month_data(sanad_id):
         # Current month query
         query = text(f"""
         SELECT 
+        	s.Order_Number,
             cast(S.Date as date) as Date,
             i.ITEM_CODE,
             i.DESCRIPTION,
@@ -367,6 +368,7 @@ def get_current_month_data(sanad_id):
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
+        	s.Order_Number,
             cast(S.Date as date),
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
@@ -421,6 +423,7 @@ def get_last_month_data(sanad_id):
         # Last month query
         query = text(f"""
         SELECT 
+        	s.Order_Number,
             cast(S.Date as date) as Date,
             i.ITEM_CODE,
             i.DESCRIPTION,
@@ -437,6 +440,7 @@ def get_last_month_data(sanad_id):
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
+        	s.Order_Number,
             cast(S.Date as date),
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
@@ -480,6 +484,7 @@ def get_two_months_ago_data(sanad_id):
         # Two months ago query
         query = text(f"""
 SELECT 
+    s.Order_Number,
     cast(S.Date as date)  as Date,
     i.ITEM_CODE,
     i.DESCRIPTION,
@@ -496,6 +501,7 @@ WHERE
     AND c.CUSTOMER_B2B_ID = '{sanad_id}'
     AND i.ITEM_CODE NOT LIKE '%XE%'
 GROUP BY 
+			s.Order_Number,
     cast(S.Date as date) ,
     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
     RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
