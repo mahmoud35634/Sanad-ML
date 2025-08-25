@@ -309,6 +309,7 @@ def get_customers_B2B(sanad_id):
 
         # Summary query remains the same
         summary_query = text(f"""
+                             SELECT
             MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
             MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
             Sum(CASE WHEN s.NetsalesValue>1 THEN  s.Netsalesvalue ELSE 0 END) AS net_Sales,
