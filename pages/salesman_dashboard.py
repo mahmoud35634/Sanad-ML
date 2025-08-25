@@ -525,7 +525,7 @@ if not st.session_state.logged_in:
 selected_salesman = st.session_state.salesman
 
 st.title("🛍️ مسحوبات العميل اخر 3 شهور وعرض منتجات اخري")
-st.write(f"هذه البيانات خاصة ل  {selected_salesman} only.")
+st.subheader(f"لمندوبهذه البيانات خاصة ل  {selected_salesman} only.")
 
 # Fetch customer data
 customer_data = get_customers_from_salesman(selected_salesman)
@@ -534,7 +534,7 @@ customer_df = pd.DataFrame(customer_data)
 # Sidebar: Customer Stats
 st.sidebar.divider()
 st.sidebar.subheader("📊 Customer Statistics")
-st.sidebar.write(f":مجموع العملاء  {len(customer_data)}")
+st.sidebar.write(f"مجموع العملاء : {len(customer_data)}")
 
 # Get SanadIDs for active customer analysis
 if customer_df.empty:
@@ -551,7 +551,7 @@ if sanad_ids:
     if not active_3m.empty:
 
         df3= active_3m[["SanadID"]]
-        st.sidebar.write(f":عدد العملاء اخر 3 شهور  {len(df3)}")
+        st.sidebar.write(f"عدد العملاء اخر 3 شهور : {len(df3)}")
     else:
         st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
 
@@ -560,7 +560,7 @@ if sanad_ids:
     if not active_current.empty:
 
         df_this_month=  active_current[["SanadID"]]
-        st.sidebar.write(f":عدد العملاء الشهر الحالي {len(df_this_month)}")
+        st.sidebar.write(f"عدد العملاء الشهر الحالي :{len(df_this_month)}")
 
     else:
         st.sidebar.warning("")
