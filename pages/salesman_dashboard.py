@@ -716,7 +716,7 @@ if st.session_state.selected_sanad:
                 st.warning("No data found for 2 months ago.")
 
 else:
-    st.info("من فضلك اخر عميل تريد الاستفسرار علي مسحوباته")
+    st.info("من فضلك اختر عميل تريد الاستفسرار علي مسحوباته")
 
 # Sidebar logout
 if st.sidebar.button("🚪 Logout"):
