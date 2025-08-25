@@ -716,7 +716,7 @@ if st.session_state.selected_sanad:
                 st.warning("No data found for 2 months ago.")
 
 else:
-    st.info("Please select a customer to view sales data.")
+    st.info("من فضلك اخر عميل تريد الاستفسرار علي مسحوباته")
 
 # Sidebar logout
 if st.sidebar.button("🚪 Logout"):
@@ -746,5 +746,5 @@ if st.session_state.selected_sanad:
         except Exception as e:
             st.error(f"Error generating recommendations: {str(e)}")
 else:
-    st.info("Please select a customer to view recommendations.")
+    st.info("حدد العميل التي تريد عرض توصيات له")
 
