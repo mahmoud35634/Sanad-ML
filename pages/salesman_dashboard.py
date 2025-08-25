@@ -562,20 +562,15 @@ else:
 # Add active customers section in sidebar
 if sanad_ids:
     # Show active customers buttons
-    if st.sidebar.button("📈 Active Last 3 Months", key="active_3m_btn"):
-        with st.spinner("Loading active customers data..."):
-            active_3m = get_active_customers_last_3_months(sanad_ids)
+
+    active_3m = get_active_customers_last_3_months(sanad_ids)
         
-        if not active_3m.empty:
-            st.sidebar.success(f"**Active in Last 3 Months:** {len(active_3m)} customers")
-            with st.sidebar.expander("📋 View Active Customers (Last 3 Months)", expanded=False):
-                df3= active_3m[["SanadID"]]
-                st.sidebar.write(f"**Total Active this month:** {len(df3)}")
+    if not active_3m.empty:
 
-
-
-        else:
-            st.sidebar.warning("No active customers found in last 3 months")
+        df3= active_3m[["SanadID"]]
+        st.sidebar.write(f"**Total Active this month:** {len(df3)}")
+    else:
+        st.sidebar.warning("No active customers found in last 3 months")
 
     if st.sidebar.button("📅 Active This Month", key="active_current_btn"):
         with st.spinner("Loading current month active customers..."):
