@@ -559,8 +559,8 @@ if not customer_df.empty:
             f"**Customer = {st.session_state.selected_customer_name}**, "
             f"**Contact = {st.session_state.selected_contact_name}**, "
             f"**Area = {st.session_state.selected_Area}**, "
-            f"**City = {st.session_state.selected_City}**"
-             f"**Address1 = {st.session_state.selected_Address1}**"
+            f"**City = {st.session_state.selected_City}** ,"
+            f"**Address1 = {st.session_state.selected_Address1}**"
         )
 else:
     st.warning("No customers found for selected salesman.")
