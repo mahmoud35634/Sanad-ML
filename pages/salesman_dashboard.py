@@ -394,7 +394,7 @@ ORDER BY Date DESC, sales DESC;
         # Two months ago summary
         summary_query = text(f"""
 SELECT 
-    cast(S.Date as date) as  Month,
+    Format(s.Date , 'MMM-yyyy') as  Month,
     FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
     ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
     COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
@@ -407,7 +407,7 @@ WHERE
     AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) -- before July 1
     AND c.CUSTOMER_B2B_ID = '{sanad_id}'
     AND i.ITEM_CODE NOT LIKE '%XE%'
-GROUP BY cast(S.Date as date) 
+GROUP BY Format(s.Date , 'MMM-yyyy') 
 ORDER BY MIN(S.Date);
 
         """)
