@@ -151,9 +151,10 @@ def get_customers_from_salesman(selected_salesman):
     contact_name_col = "Contact_NAME"
     governer_name_col = "Area"
     city_name_col = "City"
+    address_name_col="Address1"
 
     required_cols = [sr_name_col, sanad_id_col, phone_col, customer_name_col,
-                     contact_name_col, governer_name_col, city_name_col]
+                     contact_name_col, governer_name_col, city_name_col,address_name_col ]
     if not all(col in header for col in required_cols):
         st.error("One or more required columns not found.")
         return []
@@ -168,6 +169,7 @@ def get_customers_from_salesman(selected_salesman):
             "Contact_NAME": row[col_idx[contact_name_col]].strip(),
             "Area": row[col_idx[governer_name_col]].strip(),
             "City": row[col_idx[city_name_col]].strip(),
+            "Address1" :row[col_idx[address_name_col]].strip(),
         }
         for row in rows
         if row[col_idx[sr_name_col]].strip() == selected_salesman
@@ -473,7 +475,7 @@ if not customer_df.empty:
 
 # Initialize session state
 for key in ["selected_sanad", "selected_phone", "selected_customer_name", 
-            "selected_contact_name", "selected_Area", "selected_City"]:
+            "selected_contact_name", "selected_Area", "selected_City" ,"selected_Address1"]:
     if key not in st.session_state:
         st.session_state[key] = ""
 
@@ -489,6 +491,7 @@ def update_from_sanad():
             st.session_state.selected_contact_name = row["Contact_NAME"]
             st.session_state.selected_Area = row["Area"]
             st.session_state.selected_City = row["City"]
+            st.session_state.selected_Address1 = row["Address1"]
 
 def update_from_phone():
     phone = st.session_state.selected_phone
@@ -501,6 +504,8 @@ def update_from_phone():
             st.session_state.selected_contact_name = row["Contact_NAME"]
             st.session_state.selected_Area = row["Area"]
             st.session_state.selected_City = row["City"]
+            st.session_state.selected_Address1 = row["Address1"]
+
 
 def update_from_contact_name():
     contact = st.session_state.selected_contact_name
@@ -513,6 +518,8 @@ def update_from_contact_name():
             st.session_state.selected_customer_name = row["Customer_Name"]
             st.session_state.selected_Area = row["Area"]
             st.session_state.selected_City = row["City"]
+            st.session_state.selected_Address1 = row["Address1"]
+
 
 # UI: Customer selection
 if not customer_df.empty:
@@ -553,6 +560,7 @@ if not customer_df.empty:
             f"**Contact = {st.session_state.selected_contact_name}**, "
             f"**Area = {st.session_state.selected_Area}**, "
             f"**City = {st.session_state.selected_City}**"
+             f"**Address1 = {st.session_state.selected_Address1}**"
         )
 else:
     st.warning("No customers found for selected salesman.")
