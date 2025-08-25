@@ -382,7 +382,7 @@ WHERE
     AND c.CUSTOMER_B2B_ID = '{sanad_id}'
     AND i.ITEM_CODE NOT LIKE '%XE%'
 GROUP BY 
-    cast(S.Date as date) as Date,
+    cast(S.Date as date) ,
     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
     RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
     i.ITEM_CODE,
