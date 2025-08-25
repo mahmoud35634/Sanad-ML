@@ -578,7 +578,7 @@ if sanad_ids:
         
     if not active_3m.empty:
 
-        df3= active_3m[["SanadID"]]
+        df3= active_3m[["CUSTOMER_B2B_ID"]]
         st.sidebar.write(f"عدد العملاء اخر 3 شهور : {len(df3)}")
     else:
         st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
@@ -587,7 +587,7 @@ if sanad_ids:
     
     if not active_current.empty:
 
-        df_this_month=  active_current[["CUSTOMER_B2B_ID"]]
+        df_this_month=  active_current[["SanadID"]]
         st.sidebar.write(f"عدد العملاء الشهر الحالي :{len(df_this_month)}")
 
     else:
