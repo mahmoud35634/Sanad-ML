@@ -281,7 +281,16 @@ def get_current_month_data(sanad_id):
             FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
-            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
+            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems,
+                        CASE 
+                WHEN COUNT(DISTINCT CAST(s.Date AS DATE)) > 1 
+                THEN (DATEDIFF(
+                        DAY, 
+                        MIN(CAST(s.Date AS DATE)), 
+                        MAX(CAST(s.Date AS DATE))
+                     ) / COUNT(DISTINCT CAST(s.Date AS DATE)))
+                ELSE NULL 
+            END AS AvgDaysBetweenPurchases       
         FROM MP_Sales s
         LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
         LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
