@@ -23,6 +23,8 @@ def load_css(file_name):
 # Call it at the start of your app
 load_css("style.css")
 
+st.set_page_config(page_title="salesman", page_icon="💬", layout="wide")
+
 
 @st.cache_resource
 def load_content_model():
