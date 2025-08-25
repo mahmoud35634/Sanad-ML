@@ -379,7 +379,10 @@ def get_current_month_data(sanad_id):
         summary_query = text(f"""
         SELECT 
             FORMAT(DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1), 'MMM-yyyy') AS Month,
-            FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+             MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
+            MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
+            Sum(s.Netsalesvalue) AS SalesAfterReturns,
+			Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END) AS returns,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
             COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems,
