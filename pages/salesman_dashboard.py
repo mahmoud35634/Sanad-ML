@@ -524,8 +524,8 @@ if not st.session_state.logged_in:
 # Main app
 selected_salesman = st.session_state.salesman
 
-st.title("🛍️ مسحوبات العميل اخر 3 شهور وعرض منتجات اخري")
-st.subheader(f"لمندوبهذه البيانات خاصة ل  {selected_salesman} only.")
+st.header("🛍️ مسحوبات العميل اخر 3 شهور وعرض منتجات اخري")
+st.subheader(f"هذه البيانات خاصة للمندوب : {selected_salesman} only.")
 
 # Fetch customer data
 customer_data = get_customers_from_salesman(selected_salesman)
