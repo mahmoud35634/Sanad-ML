@@ -190,13 +190,7 @@ def get_active_customers_last_3_months(customer_sanad_ids):
     with engine.connect() as conn:
         query = text(f"""
         SELECT DISTINCT
-            c.CUSTOMER_B2B_ID as SanadID,
-            c.CUSTOMER_NAME as CustomerName,
-            FORMAT(SUM(s.Netsalesvalue), 'N0') AS TotalSales,
-            ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
-            COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
-            MAX(CAST(s.Date AS DATE)) AS LastPurchaseDate,
-            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
+            c.CUSTOMER_B2B_ID as SanadID
         FROM MP_Sales s
         LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
         LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
@@ -206,10 +200,6 @@ def get_active_customers_last_3_months(customer_sanad_ids):
             AND c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
             AND i.ITEM_CODE NOT LIKE '%XE%'
             AND s.Netsalesvalue > 0
-        GROUP BY 
-            c.CUSTOMER_B2B_ID,
-            c.CUSTOMER_NAME
-        ORDER BY SUM(s.Netsalesvalue) DESC
         """)
 
         df = pd.read_sql(query, conn)
@@ -230,13 +220,7 @@ def get_active_customers_current_month(customer_sanad_ids):
     with engine.connect() as conn:
         query = text(f"""
         SELECT DISTINCT
-            c.CUSTOMER_B2B_ID as SanadID,
-            c.CUSTOMER_NAME as CustomerName,
-            FORMAT(SUM(s.Netsalesvalue), 'N0') AS TotalSales,
-            ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
-            COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
-            MAX(CAST(s.Date AS DATE)) AS LastPurchaseDate,
-            COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
+            c.CUSTOMER_B2B_ID as SanadID
         FROM MP_Sales s
         LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
         LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
@@ -246,10 +230,7 @@ def get_active_customers_current_month(customer_sanad_ids):
             AND c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
             AND i.ITEM_CODE NOT LIKE '%XE%'
             AND s.Netsalesvalue > 0
-        GROUP BY 
-            c.CUSTOMER_B2B_ID,
-            c.CUSTOMER_NAME
-        ORDER BY SUM(s.Netsalesvalue) DESC
+
         """)
 
         df = pd.read_sql(query, conn)
