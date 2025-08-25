@@ -587,7 +587,7 @@ if sanad_ids:
     
     if not active_current.empty:
 
-        df_this_month=  active_current[["SanadID"]]
+        df_this_month=  active_current[["CUSTOMER_B2B_ID"]]
         st.sidebar.write(f"عدد العملاء الشهر الحالي :{len(df_this_month)}")
 
     else:
