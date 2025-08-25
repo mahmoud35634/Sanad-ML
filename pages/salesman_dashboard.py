@@ -524,8 +524,8 @@ if not st.session_state.logged_in:
 # Main app
 selected_salesman = st.session_state.salesman
 
-st.title("🛍️ Customer Sales History & Recommendations")
-st.write(f"This view is restricted to **{selected_salesman}** only.")
+st.title("🛍️ مسحوبات العميل اخر 3 شهور وعرض منتجات اخري")
+st.write(f"هذه البيانات خاصة ل  **{selected_salesman}** only.")
 
 # Fetch customer data
 customer_data = get_customers_from_salesman(selected_salesman)
@@ -534,7 +534,7 @@ customer_df = pd.DataFrame(customer_data)
 # Sidebar: Customer Stats
 st.sidebar.divider()
 st.sidebar.subheader("📊 Customer Statistics")
-st.sidebar.write(f"**Total Listed Customers:** {len(customer_data)}")
+st.sidebar.write(f"**مجموع العملاء ** {len(customer_data)}")
 
 # Get SanadIDs for active customer analysis
 if customer_df.empty:
@@ -551,19 +551,21 @@ if sanad_ids:
     if not active_3m.empty:
 
         df3= active_3m[["SanadID"]]
-        st.sidebar.write(f"**Total Active last 3 month:** {len(df3)}")
+        st.sidebar.write(f"**عدد العملاء اخر 3 شهور ** {len(df3)}")
     else:
-        st.sidebar.warning("No active customers found in last 3 months")
+        st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
 
     active_current = get_active_customers_current_month(sanad_ids)
     
     if not active_current.empty:
 
         df_this_month=  active_current[["SanadID"]]
-        st.sidebar.write(f"**Total Active this month:** {len(df_this_month)}")
+        st.sidebar.write(f"**عدد العملاء الشهر الحالي:** {len(df_this_month)}")
 
     else:
         st.sidebar.warning("")
+
+
 if not customer_df.empty:
     customer_df.columns = customer_df.columns.str.strip()
 
@@ -659,13 +661,13 @@ if st.session_state.selected_sanad:
     main_col, detail_col = st.columns([2, 1])
     
     with main_col:
-        st.subheader("📊 Last 3 Months Summary (Total by Items)")
-        with st.spinner("Loading customer data..."):
-            df_b2b, df_summary = get_customers_B2B(st.session_state.selected_sanad)
+        st.subheader("📊 مسحوبات اخر 3 شهور بالمنتجات")
+        # with st.spinner("Loading customer data..."):
+        df_b2b, df_summary = get_customers_B2B(st.session_state.selected_sanad)
             
         if not df_b2b.empty:
             st.dataframe(df_b2b, use_container_width=True)
-            st.subheader("📈 Summary Details")
+            st.subheader("📈 ملخص اخر 3 شهور")
             st.dataframe(df_summary, use_container_width=True)
         else:
             st.info("No data found for the last 3 months.")
@@ -674,9 +676,9 @@ if st.session_state.selected_sanad:
         st.subheader("🗓️ Monthly Details")
         
         # Three independent buttons for monthly data
-        if st.button("📅 Current Month", key="current_month_btn"):
-            with st.spinner("Loading current month data..."):
-                monthly_df, monthly_summary = get_current_month_data(st.session_state.selected_sanad)
+        if st.button("📅 الشهر الحالي", key="current_month_btn"):
+            # with st.spinner("Loading current month data..."):
+            monthly_df, monthly_summary = get_current_month_data(st.session_state.selected_sanad)
                 
             if not monthly_df.empty:
                 st.subheader("📋 Current Month Data")
@@ -687,9 +689,9 @@ if st.session_state.selected_sanad:
             else:
                 st.warning("No data found for current month.")
         
-        if st.button("📅 Last Month", key="last_month_btn"):
-            with st.spinner("Loading last month data..."):
-                monthly_df, monthly_summary = get_last_month_data(st.session_state.selected_sanad)
+        if st.button("📅 الشهر السابق", key="last_month_btn"):
+            # with st.spinner("Loading last month data..."):
+            monthly_df, monthly_summary = get_last_month_data(st.session_state.selected_sanad)
                 
             if not monthly_df.empty:
                 st.subheader("📋 Last Month Data")
