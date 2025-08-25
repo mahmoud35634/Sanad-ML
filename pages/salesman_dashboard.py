@@ -582,15 +582,15 @@ else:
 if sanad_ids:
     # Show active customers buttons
 
-    df = get_active_customers_last_3_months(sanad_ids)
-    tgt_p2 = calculate_tgt_p2(df)
+    # df = get_active_customers_last_3_months(sanad_ids)
+    # tgt_p2 = calculate_tgt_p2(df)
 
 
         
-    # if not tgt_p2.empty:
+    # # if not tgt_p2.empty:
 
-    # df3= tgt_p2[["CUSTOMER_B2B_ID"]]
-    st.sidebar.write(f"عدد العملاء اخر 3 شهور : {tgt_p2}")
+    # # df3= tgt_p2[["CUSTOMER_B2B_ID"]]
+    # st.sidebar.write(f"عدد العملاء اخر 3 شهور : {tgt_p2}")
     # else:
     #     st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
 
