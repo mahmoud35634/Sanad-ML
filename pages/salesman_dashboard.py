@@ -530,8 +530,40 @@ st.write(f"This view is restricted to **{selected_salesman}** only.")
 # Fetch customer data
 customer_data = get_customers_from_salesman(selected_salesman)
 customer_df = pd.DataFrame(customer_data)
-st.sidebar.write(f"Total Customers: {len(customer_data)}")
 
+# Sidebar: Customer Stats
+st.sidebar.divider()
+st.sidebar.subheader("📊 Customer Statistics")
+st.sidebar.write(f"**Total Listed Customers:** {len(customer_data)}")
+
+# Get SanadIDs for active customer analysis
+if customer_df.empty:
+    sanad_ids = []
+else:
+    sanad_ids = [cust["SanadID"] for cust in customer_data if cust["SanadID"].strip()]
+
+# Add active customers section in sidebar
+if sanad_ids:
+    # Show active customers buttons
+
+    active_3m = get_active_customers_last_3_months(sanad_ids)
+        
+    if not active_3m.empty:
+
+        df3= active_3m[["SanadID"]]
+        st.sidebar.write(f"**Total Active last 3 month:** {len(df3)}")
+    else:
+        st.sidebar.warning("No active customers found in last 3 months")
+
+    active_current = get_active_customers_current_month(sanad_ids)
+    
+    if not active_current.empty:
+
+        df_this_month=  active_current[["SanadID"]]
+        st.sidebar.write(f"**Total Active this month:** {len(df_this_month)}")
+
+    else:
+        st.sidebar.warning("")
 if not customer_df.empty:
     customer_df.columns = customer_df.columns.str.strip()
 
@@ -714,37 +746,3 @@ if st.session_state.selected_sanad:
 else:
     st.info("Please select a customer to view recommendations.")
 
-
-# Sidebar: Customer Stats
-st.sidebar.divider()
-st.sidebar.subheader("📊 Customer Statistics")
-st.sidebar.write(f"**Total Listed Customers:** {len(customer_data)}")
-
-# Get SanadIDs for active customer analysis
-if customer_df.empty:
-    sanad_ids = []
-else:
-    sanad_ids = [cust["SanadID"] for cust in customer_data if cust["SanadID"].strip()]
-
-# Add active customers section in sidebar
-if sanad_ids:
-    # Show active customers buttons
-
-    active_3m = get_active_customers_last_3_months(sanad_ids)
-        
-    if not active_3m.empty:
-
-        df3= active_3m[["SanadID"]]
-        st.sidebar.write(f"**Total Active last 3 month:** {len(df3)}")
-    else:
-        st.sidebar.warning("No active customers found in last 3 months")
-
-    active_current = get_active_customers_current_month(sanad_ids)
-    
-    if not active_current.empty:
-
-        df_this_month=  active_current[["SanadID"]]
-        st.sidebar.write(f"**Total Active this month:** {len(df_this_month)}")
-
-    else:
-        st.sidebar.warning("")
