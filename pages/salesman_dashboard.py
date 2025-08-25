@@ -568,19 +568,16 @@ if sanad_ids:
     if not active_3m.empty:
 
         df3= active_3m[["SanadID"]]
-        st.sidebar.write(f"**Total Active this month:** {len(df3)}")
+        st.sidebar.write(f"**Total Active last 3 month:** {len(df3)}")
     else:
         st.sidebar.warning("No active customers found in last 3 months")
 
-    if st.sidebar.button("📅 Active This Month", key="active_current_btn"):
-        with st.spinner("Loading current month active customers..."):
-            active_current = get_active_customers_current_month(sanad_ids)
-        
-        if not active_current.empty:
-            st.sidebar.success(f"**Active This Month:** {len(active_current)} customers")
-            with st.sidebar.expander("📋 View Active Customers (This Month)", expanded=False):
-                df=  active_current[["SanadID"]]
-                st.sidebar.write(f"**Total Active this month:** {len(df)}")
+    active_current = get_active_customers_current_month(sanad_ids)
+    
+    if not active_current.empty:
 
-        else:
-            st.sidebar.warning("")
+        df_this_month=  active_current[["SanadID"]]
+        st.sidebar.write(f"**Total Active this month:** {len(df_this_month)}")
+
+    else:
+        st.sidebar.warning("")
