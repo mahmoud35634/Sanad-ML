@@ -586,12 +586,12 @@ if sanad_ids:
 
 
         
-    if not tgt_p2.empty:
+    # if not tgt_p2.empty:
 
-        df3= tgt_p2[["CUSTOMER_B2B_ID"]]
-        st.sidebar.write(f"عدد العملاء اخر 3 شهور : {len(df3)}")
-    else:
-        st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
+    df3= tgt_p2[["CUSTOMER_B2B_ID"]]
+    st.sidebar.write(f"عدد العملاء اخر 3 شهور : {tgt_p2}")
+    # else:
+    #     st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
 
     active_current = get_active_customers_current_month(sanad_ids)
     
