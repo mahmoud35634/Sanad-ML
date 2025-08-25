@@ -312,8 +312,8 @@ def get_customers_B2B(sanad_id):
                              SELECT
             MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
             MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
-            Sum(s.Netsalesvalue) AS SalesAfterReturns,
-			Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END) AS returns,
+            Round(Sum(s.Netsalesvalue),0) AS SalesAfterReturns,
+			Abs(Round(Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END),0)) AS returns,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseTimes,
             CASE 
@@ -381,8 +381,8 @@ def get_current_month_data(sanad_id):
             FORMAT(DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1), 'MMM-yyyy') AS Month,
              MIN(CAST(s.Date AS DATE)) AS FirstPurchasedDate,
             MAX(CAST(s.Date AS DATE)) AS LastPurchasedDate,
-            Sum(s.Netsalesvalue) AS SalesAfterReturns,
-			Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END) AS returns,
+            Round(Sum(s.Netsalesvalue),0) AS SalesAfterReturns,
+			Abs(Round(Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END),0)) AS returns,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
             COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems,
@@ -449,7 +449,8 @@ def get_last_month_data(sanad_id):
         summary_query = text(f"""
         SELECT 
             FORMAT(DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)), 'MMM-yyyy') AS Month,
-            FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+            Round(Sum(s.Netsalesvalue),0) AS SalesAfterReturns,
+			Abs(Round(Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END),0)) AS returns,
             ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
             COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
             COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
@@ -508,7 +509,8 @@ ORDER BY Date DESC, sales DESC;
         summary_query = text(f"""
 SELECT 
     Format(s.Date , 'MMM-yyyy') as  Month,
-    FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
+   Round(Sum(s.Netsalesvalue),0) AS SalesAfterReturns,
+	Abs(Round(Sum(CASE WHEN s.NetsalesValue<0 THEN  s.Netsalesvalue ELSE 0 END),0)) AS returns,
     ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
     COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
     COUNT(DISTINCT i.ITEM_CODE) AS UniqueItems
