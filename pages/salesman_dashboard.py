@@ -408,7 +408,7 @@ WHERE
     AND c.CUSTOMER_B2B_ID = '{sanad_id}'
     AND i.ITEM_CODE NOT LIKE '%XE%'
 GROUP BY Format(s.Date , 'MMM-yyyy') 
-ORDER BY Min(S.Date);
+ORDER BY MAX(S.Date);
 
         """)
 
