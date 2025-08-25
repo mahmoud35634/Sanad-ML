@@ -250,7 +250,7 @@ def get_current_month_data(sanad_id):
         # Current month query
         query = text(f"""
         SELECT 
-            FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
+            cast(S.Date as date) as Date,
             i.ITEM_CODE,
             i.DESCRIPTION,
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
@@ -266,7 +266,7 @@ def get_current_month_data(sanad_id):
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
-            FORMAT(S.Date, 'dd-MMM-yyyy'),
+            cast(S.Date as date),
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
@@ -308,7 +308,7 @@ def get_last_month_data(sanad_id):
         # Last month query
         query = text(f"""
         SELECT 
-            FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
+            cast(S.Date as date) as Date,
             i.ITEM_CODE,
             i.DESCRIPTION,
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
@@ -324,7 +324,7 @@ def get_last_month_data(sanad_id):
             AND c.CUSTOMER_B2B_ID = '{sanad_id}'
             AND i.ITEM_CODE NOT LIKE '%XE%'
         GROUP BY 
-            FORMAT(S.Date, 'dd-MMM-yyyy'),
+            cast(S.Date as date),
             RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
             RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
             i.ITEM_CODE,
@@ -366,7 +366,7 @@ def get_two_months_ago_data(sanad_id):
         # Two months ago query
         query = text(f"""
 SELECT 
-    FORMAT(S.Date, 'dd-MMM-yyyy') as Date,
+    cast(S.Date as date)  as Date,
     i.ITEM_CODE,
     i.DESCRIPTION,
     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)) AS Company,
@@ -382,7 +382,7 @@ WHERE
     AND c.CUSTOMER_B2B_ID = '{sanad_id}'
     AND i.ITEM_CODE NOT LIKE '%XE%'
 GROUP BY 
-    FORMAT(S.Date, 'dd-MMM-yyyy'),
+    cast(S.Date as date) as Date,
     RIGHT(i.MASTER_BRAND, LEN(i.MASTER_BRAND) - CHARINDEX('|', i.MASTER_BRAND)),
     RIGHT(i.MG2, LEN(i.MG2) - CHARINDEX('|', i.MG2)),
     i.ITEM_CODE,
@@ -394,7 +394,7 @@ ORDER BY Date DESC, sales DESC;
         # Two months ago summary
         summary_query = text(f"""
 SELECT 
-    FORMAT(S.Date, 'MMM-yyyy') AS Month,
+    cast(S.Date as date) as  Month,
     FORMAT(SUM(s.Netsalesvalue), 'N0') AS Sales,
     ROUND(SUM(s.SalesQtyInCases), 0) AS TotalQty,
     COUNT(DISTINCT CAST(s.Date AS DATE)) AS PurchaseDays,
@@ -407,7 +407,7 @@ WHERE
     AND s.Date < DATEADD(MONTH, -1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)) -- before July 1
     AND c.CUSTOMER_B2B_ID = '{sanad_id}'
     AND i.ITEM_CODE NOT LIKE '%XE%'
-GROUP BY FORMAT(S.Date, 'MMM-yyyy')
+GROUP BY cast(S.Date as date) 
 ORDER BY MIN(S.Date);
 
         """)
