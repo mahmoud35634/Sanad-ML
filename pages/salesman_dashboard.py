@@ -196,6 +196,13 @@ ON TGT_P2.CUSTOMER_B2B_ID = ACH_C.CUSTOMER_B2B_ID;
     return df
 
 
+def calculate_tgt_p2(df: pd.DataFrame) -> int:
+    """Replicates DAX: count distinct CUSTOMER_B2B_ID where Sales_P2 > 1"""
+    if df.empty:
+        return 0
+    return df.loc[df["Sales_P2"] > 1, "CUSTOMER_B2B_ID"].nunique()
+
+
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_active_customers_current_month(customer_sanad_ids):
     """Get active customers from the list for current month with caching"""
@@ -574,11 +581,14 @@ else:
 if sanad_ids:
     # Show active customers buttons
 
-    active_3m = get_active_customers_last_3_months(sanad_ids)
-        
-    if not active_3m.empty:
+    df = get_active_customers_last_3_months(sanad_ids)
+    tgt_p2 = calculate_tgt_p2(df)
 
-        df3= active_3m[["CUSTOMER_B2B_ID"]]
+
+        
+    if not tgt_p2.empty:
+
+        df3= tgt_p2[["CUSTOMER_B2B_ID"]]
         st.sidebar.write(f"عدد العملاء اخر 3 شهور : {len(df3)}")
     else:
         st.sidebar.warning("لا يوجد عملاء اخر 3 شهور")
