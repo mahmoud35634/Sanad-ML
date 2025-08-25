@@ -702,18 +702,18 @@ if st.session_state.selected_sanad:
             else:
                 st.warning("No data found for last month.")
         
-        if st.button("📅 2 Months Ago", key="two_months_ago_btn"):
+        if st.button("📅 اول شهرين ", key="two_months_ago_btn"):
             # with st.spinner("Loading 2 months ago data..."):
             monthly_df, monthly_summary = get_two_months_ago_data(st.session_state.selected_sanad)
                 
             if not monthly_df.empty:
-                st.subheader("📋 2 Months Ago Data")
+                st.subheader("📋 بيانات اول شهرين")
                 st.dataframe(monthly_df, use_container_width=True, height=300)
                 
-                st.subheader("📊 2 Months Ago Summary")
+                st.subheader("📊 ملخص مسوحبات اول شهرين ")
                 st.dataframe(monthly_summary, use_container_width=True)
             else:
-                st.warning("No data found for 2 months ago.")
+                st.warning("ملوش مسوحبات اول هشرين  من ال3 شهور")
 
 else:
     st.info("من فضلك اختر عميل تريد الاستفسرار علي مسحوباته")
