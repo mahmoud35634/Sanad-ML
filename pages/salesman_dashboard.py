@@ -136,6 +136,70 @@ def recommend_for_customer_content(sanad_id, num_recommendations=5):
     return pd.DataFrame(diverse_list)
 
 
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_active_customers_last_3_months(customer_sanad_ids):
+    """Get active customers from the list for last 3 months with caching"""
+    if not customer_sanad_ids:
+        return pd.DataFrame()
+
+    # Create a string of quoted SanadIDs for the SQL IN clause
+    sanad_ids_str = "', '".join(customer_sanad_ids)
+    sanad_ids_str = f"'{sanad_ids_str}'"
+
+    with engine.connect() as conn:
+        query = text(f"""
+        SELECT DISTINCT
+            c.CUSTOMER_B2B_ID as SanadID
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+            AND s.Netsalesvalue > 0
+        """)
+
+        df = pd.read_sql(query, conn)
+
+    return df
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_active_customers_current_month(customer_sanad_ids):
+    """Get active customers from the list for current month with caching"""
+    if not customer_sanad_ids:
+        return pd.DataFrame()
+
+    # Create a string of quoted SanadIDs for the SQL IN clause
+    sanad_ids_str = "', '".join(customer_sanad_ids)
+    sanad_ids_str = f"'{sanad_ids_str}'"
+
+    with engine.connect() as conn:
+        query = text(f"""
+        SELECT DISTINCT
+            c.CUSTOMER_B2B_ID as SanadID
+        FROM MP_Sales s
+        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
+        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
+        WHERE 
+            s.Date >= DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1)
+            AND s.Date < DATEADD(MONTH, 1, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
+            AND c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
+            AND i.ITEM_CODE NOT LIKE '%XE%'
+            AND s.Netsalesvalue > 0
+
+        """)
+
+        df = pd.read_sql(query, conn)
+
+    return df
+
+
+
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_customers_from_salesman(selected_salesman):
     """Get customers from Google Sheet with caching"""
