@@ -150,17 +150,45 @@ def get_active_customers_last_3_months(customer_sanad_ids):
 
     with engine.connect() as conn:
         query = text(f"""
-        SELECT DISTINCT
-            c.CUSTOMER_B2B_ID as SanadID
-        FROM MP_Sales s
-        LEFT JOIN MP_Customers c ON s.CustomerID = c.SITE_NUMBER
-        LEFT JOIN MP_Items i ON s.ItemId = i.ITEM_CODE
-        WHERE 
-            s.Date >= DATEADD(MONTH, -3, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND s.Date < DATEADD(MONTH, 0, DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1))
-            AND c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
-            AND i.ITEM_CODE NOT LIKE '%XE%'
-            AND s.Netsalesvalue > 0
+SELECT DISTINCT 
+    COALESCE(TGT_P2.CUSTOMER_B2B_ID, ACH_C.CUSTOMER_B2B_ID)  AS CUSTOMER_B2B_ID,
+    COALESCE(TGT_P2.CONTACT_NAME, ACH_C.CONTACT_NAME) AS Contact_Name,
+    COALESCE(TGT_P2.PHONE_NUMBER, ACH_C.PHONE_NUMBER) AS Phone_Number,
+                COALESCE(TGT_P2.GOVERNER_NAME, ACH_C.GOVERNER_NAME) AS GOVERNER_NAME,
+
+    TGT_P2.CurrentMonthSales AS Sales_P2,
+    CASE WHEN ACH_C.CUSTOMER_B2B_ID IS NULL THEN 0 ELSE 1 END AS Active_P2,
+    COALESCE(ACH_C.CurrentMonthSales, 0) AS Current_Sales
+FROM (
+    SELECT  
+        c.CUSTOMER_B2B_ID,
+        c.CONTACT_NAME,
+        c.PHONE_NUMBER,c.GOVERNER_NAME,
+        SUM(s.Netsalesvalue) AS CurrentMonthSales 
+    FROM MP_Sales s 
+    LEFT JOIN MP_CUSTOMERS c
+           ON c.SITE_NUMBER = s.CustomerId 
+    WHERE s.Date >= DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()) - 3, 0)
+      AND s.Date <  DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()), 0) AND c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
+    GROUP BY c.CUSTOMER_B2B_ID, c.CONTACT_NAME, c.PHONE_NUMBER,c.GOVERNER_NAME
+    HAVING SUM(s.Netsalesvalue) >= 1 
+) AS TGT_P2
+FULL OUTER JOIN (
+    SELECT  
+        c.CUSTOMER_B2B_ID,
+        c.CONTACT_NAME,
+        c.PHONE_NUMBER,c.GOVERNER_NAME,
+        SUM(s.Netsalesvalue) AS CurrentMonthSales 
+    FROM MP_Sales s 
+    LEFT JOIN MP_CUSTOMERS c
+           ON c.SITE_NUMBER = s.CustomerId 
+    WHERE MONTH(s.Date) = MONTH(GETDATE())
+      AND YEAR(s.Date)  = YEAR(GETDATE()) and  c.CUSTOMER_B2B_ID IN ({sanad_ids_str})
+    GROUP BY c.CUSTOMER_B2B_ID, c.CONTACT_NAME, c.PHONE_NUMBER,c.GOVERNER_NAME
+    HAVING SUM(s.Netsalesvalue) >= 1 
+) AS ACH_C
+ON TGT_P2.CUSTOMER_B2B_ID = ACH_C.CUSTOMER_B2B_ID;
+
         """)
 
         df = pd.read_sql(query, conn)
